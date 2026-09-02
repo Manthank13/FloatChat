@@ -2,6 +2,7 @@
 
 from ai.prompts.system_prompts import (
     OCEANOGRAPHER_SYSTEM_PROMPT,
+    QUERY_INTERPRETER_SYSTEM_PROMPT,
     QUERY_PARSER_SYSTEM_PROMPT,
 )
 from ai.prompts.templates import (
@@ -11,6 +12,7 @@ from ai.prompts.templates import (
 
 __all__ = [
     "OCEANOGRAPHER_SYSTEM_PROMPT",
+    "QUERY_INTERPRETER_SYSTEM_PROMPT",
     "QUERY_PARSER_SYSTEM_PROMPT",
     "QUERY_PARSER_USER_TEMPLATE",
     "FEW_SHOT_QUERY_PARSER_EXAMPLES",
