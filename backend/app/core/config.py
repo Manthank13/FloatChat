@@ -12,6 +12,12 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     LOG_LEVEL: str = "INFO"
 
+    # Data Provider configuration ("argo" or "mock")
+    DATA_PROVIDER: str = "argo"
+    ARGO_BASE_URL: str = "https://erddap.ifremer.fr/erddap/tabledap/ArgoFloats.json"
+    ARGO_REQUEST_TIMEOUT: float = 15.0
+    ARGO_MAX_RECORDS: int = 500
+
     # CORS configuration
     CORS_ORIGINS: Union[List[str], str] = [
         "http://localhost:3000",
