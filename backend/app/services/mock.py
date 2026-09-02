@@ -11,6 +11,12 @@ class MockArgoDataSource(ArgoDataSource):
 
     def __init__(self):
         self.data_source_id = "mock"
+        # Fixed realistic mock float locations
+        self.mock_platforms = [
+            {"id": "MOCK6902746", "lat": 25.0, "lon": -75.0},
+            {"id": "MOCK6902747", "lat": 25.5, "lon": -75.5},
+            {"id": "MOCK6902748", "lat": 26.0, "lon": -76.0},
+        ]
 
     def _generate_mock_profile(
         self,
@@ -23,13 +29,11 @@ class MockArgoDataSource(ArgoDataSource):
         """Generates a synthetic oceanic profile with realistic temperature/salinity depth gradients."""
         observations: List[Observation] = []
 
-        # Standard pressure levels (0 to 1000 decibars)
         pressures = [0.0, 10.0, 20.0, 50.0, 100.0, 200.0, 500.0, 800.0, 1000.0]
         surface_temp = 24.5 - (abs(latitude) / 90.0) * 15.0
         deep_temp = 3.5
 
         for pres in pressures:
-            # Exponential decay model for ocean thermocline
             decay = math.exp(-pres / 200.0)
             temp = deep_temp + (surface_temp - deep_temp) * decay
             psal = 35.0 + 0.5 * (1.0 - decay) - 0.2 * math.sin(pres / 100.0)
@@ -110,12 +114,28 @@ class MockArgoDataSource(ArgoDataSource):
         now = datetime.now(timezone.utc)
         profiles: List[Profile] = []
 
-        mock_floats = ["MOCK6902746", "MOCK6902747", "MOCK6902748"]
-        for idx, fid in enumerate(mock_floats):
-            lat = (min_lat + max_lat) / 2.0 if (min_lat is not None and max_lat is not None) else (20.0 + idx * 5.0)
-            lon = (min_lon + max_lon) / 2.0 if (min_lon is not None and max_lon is not None) else (-70.0 - idx * 5.0)
+        for platform in self.mock_platforms:
+            plat_lat = platform["lat"]
+            plat_lon = platform["lon"]
 
-            profile = self._generate_mock_profile(fid, 10 + idx, now, lat, lon)
-            profiles.append(profile)
+            if min_lat is not None and plat_lat < min_lat:
+                continue
+            if max_lat is not None and plat_lat > max_lat:
+                continue
+            if min_lon is not None and plat_lon < min_lon:
+                continue
+            if max_lon is not None and plat_lon > max_lon:
+                continue
+
+            for cycle_idx in range(5):
+                ts = now - timedelta(days=cycle_idx * 5)
+                profile = self._generate_mock_profile(
+                    platform["id"],
+                    10 + cycle_idx,
+                    ts,
+                    plat_lat + (cycle_idx * 0.01),
+                    plat_lon + (cycle_idx * 0.01),
+                )
+                profiles.append(profile)
 
         return profiles[:limit]
