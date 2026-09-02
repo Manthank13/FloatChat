@@ -13,7 +13,11 @@ os.environ["ENVIRONMENT"] = "testing"
 from app.core.config import settings
 settings.ENVIRONMENT = "testing"
 
+from app.db.repositories.chat_message import ChatMessageRepository
+from app.db.repositories.chat_session import ChatSessionRepository
+from app.db.repositories.saved_query import SavedQueryRepository
 from app.db.repositories.user import UserRepository
+from app.db.repositories.user_preferences import UserPreferencesRepository
 from app.main import app
 
 
@@ -25,8 +29,16 @@ def client() -> TestClient:
 
 
 @pytest.fixture(autouse=True)
-def isolate_in_memory_users():
-    """Ensures each test starts and ends with an isolated in-memory user repository."""
+def isolate_in_memory_database():
+    """Ensures each test starts and ends with clean isolated in-memory repositories."""
     UserRepository._in_memory_users.clear()
+    ChatSessionRepository._in_memory_sessions.clear()
+    ChatMessageRepository._in_memory_messages.clear()
+    SavedQueryRepository._in_memory_queries.clear()
+    UserPreferencesRepository._in_memory_preferences.clear()
     yield
     UserRepository._in_memory_users.clear()
+    ChatSessionRepository._in_memory_sessions.clear()
+    ChatMessageRepository._in_memory_messages.clear()
+    SavedQueryRepository._in_memory_queries.clear()
+    UserPreferencesRepository._in_memory_preferences.clear()

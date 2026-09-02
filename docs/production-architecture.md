@@ -14,15 +14,15 @@ Frontend (React/Vite)
 FastAPI Application (FloatChat Backend)
  ├── Middleware: RequestIDMiddleware (X-Request-ID Correlation Tracing)
  ├── Middleware: CORSMiddleware (Configured Origins)
- ├── API Layer: /api/v1 (Health, Auth, Argo, Query, Analysis)
+ ├── API Layer: /api/v1 (Health, Auth, Chat, Saved Queries, Preferences, Argo, Query, Analysis)
  ├── Security & Auth: Argon2 Password Hashing & PyJWT (`app/core/security.py`)
- ├── Persistence Layer: MongoDB Atlas (`floatchat` DB -> `users` collection)
- ├── Service Layer: Query & Scientific Analysis Engines
+ ├── Persistence Layer: MongoDB Atlas (`floatchat` DB -> `users`, `chat_sessions`, `messages`, `saved_queries`, `user_preferences`)
+ ├── Service Layer: Chat, Saved Queries, Preferences, Query & Scientific Analysis Engines
  └── Provider Abstraction: GDAC ERDDAP / Mock Fallback Provider
 ```
 
 > **Data Responsibility Principle**:
-> - **MongoDB Atlas**: Stores application and user data (`users`, `chat_sessions`, `saved_queries`).
+> - **MongoDB Atlas**: Stores application and user data (`users`, `chat_sessions`, `messages`, `saved_queries`, `user_preferences`).
 > - **Argo GDAC / ERDDAP**: Source of truth for raw oceanographic observations (`TEMP`, `PSAL`, `PRES`).
 
 ---

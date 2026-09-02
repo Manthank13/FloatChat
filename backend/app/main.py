@@ -13,7 +13,11 @@ from app.core.exceptions import (
     validation_exception_handler,
 )
 from app.core.logging import logger
+from app.db.repositories.chat_message import ChatMessageRepository
+from app.db.repositories.chat_session import ChatSessionRepository
+from app.db.repositories.saved_query import SavedQueryRepository
 from app.db.repositories.user import UserRepository
+from app.db.repositories.user_preferences import UserPreferencesRepository
 from app.db.session import MongoDBManager
 from app.middleware.request_id import RequestIDMiddleware
 
@@ -26,8 +30,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Initialize MongoDB connection if MONGODB_URI configured
     try:
         await MongoDBManager.connect()
-        user_repo = UserRepository()
-        await user_repo.create_indexes()
+        await UserRepository().create_indexes()
+        await ChatSessionRepository().create_indexes()
+        await ChatMessageRepository().create_indexes()
+        await SavedQueryRepository().create_indexes()
+        await UserPreferencesRepository().create_indexes()
     except Exception as exc:
         logger.warning(f"MongoDB startup connection warning: {exc}")
 
