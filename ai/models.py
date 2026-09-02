@@ -35,32 +35,32 @@ class OceanParameter(str, Enum):
 
 class Coordinates(BaseModel):
     """Geographic point coordinate specification."""
-    latitude: float = Field(..., ge=-90.0, le=90.0, description="Latitude in decimal degrees (-90 to 90)")
-    longitude: float = Field(..., ge=-180.0, le=180.0, description="Longitude in decimal degrees (-180 to 180)")
+    latitude: float = Field(..., description="Latitude in decimal degrees (-90 to 90)")
+    longitude: float = Field(..., description="Longitude in decimal degrees (-180 to 180)")
 
 
 class BoundingBox(BaseModel):
     """Geographic bounding box specification (min_lat, min_lon, max_lat, max_lon)."""
-    min_latitude: float = Field(..., ge=-90.0, le=90.0)
-    min_longitude: float = Field(..., ge=-180.0, le=180.0)
-    max_latitude: float = Field(..., ge=-90.0, le=90.0)
-    max_longitude: float = Field(..., ge=-180.0, le=180.0)
+    min_latitude: float = Field(..., description="Minimum latitude (-90 to 90)")
+    min_longitude: float = Field(..., description="Minimum longitude (-180 to 180)")
+    max_latitude: float = Field(..., description="Maximum latitude (-90 to 90)")
+    max_longitude: float = Field(..., description="Maximum longitude (-180 to 180)")
 
 
 class LocationFilter(BaseModel):
     """Location parameters extracted from user query."""
     name: Optional[str] = Field(default=None, description="Recognized marine region or coastal place name")
-    latitude: Optional[float] = Field(default=None, ge=-90.0, le=90.0)
-    longitude: Optional[float] = Field(default=None, ge=-180.0, le=180.0)
+    latitude: Optional[float] = Field(default=None, description="Latitude in decimal degrees")
+    longitude: Optional[float] = Field(default=None, description="Longitude in decimal degrees")
     bounding_box: Optional[BoundingBox] = Field(default=None, description="Spatial bounding box if applicable")
-    radius_km: Optional[float] = Field(default=None, ge=0.0, description="Radial search distance in km")
+    radius_km: Optional[float] = Field(default=None, description="Radial search distance in km")
 
 
 class DepthFilter(BaseModel):
     """Vertical depth filter in meters / dbar."""
-    depth_min: Optional[float] = Field(default=None, ge=0.0, le=6000.0, description="Minimum depth (meters/dbar)")
-    depth_max: Optional[float] = Field(default=None, ge=0.0, le=6000.0, description="Maximum depth (meters/dbar)")
-    target_depth: Optional[float] = Field(default=None, ge=0.0, le=6000.0, description="Specific target depth")
+    depth_min: Optional[float] = Field(default=None, description="Minimum depth (meters/dbar)")
+    depth_max: Optional[float] = Field(default=None, description="Maximum depth (meters/dbar)")
+    target_depth: Optional[float] = Field(default=None, description="Specific target depth")
     unit: str = Field(default="meters", description="Depth unit: meters or dbar")
 
 
@@ -68,16 +68,18 @@ class TimeRangeFilter(BaseModel):
     """Temporal constraints for oceanographic observations."""
     start_date: Optional[str] = Field(default=None, description="ISO formatted start date (YYYY-MM-DD)")
     end_date: Optional[str] = Field(default=None, description="ISO formatted end date (YYYY-MM-DD)")
-    year: Optional[int] = Field(default=None, ge=1990, le=2030, description="Specific observation year")
-    month: Optional[int] = Field(default=None, ge=1, le=12, description="Specific month (1-12)")
+    year: Optional[int] = Field(default=None, description="Specific observation year")
+    month: Optional[int] = Field(default=None, description="Specific month (1-12)")
     season: Optional[str] = Field(default=None, description="Identified season (e.g., summer, monsoon, winter)")
+    relative_days: Optional[int] = Field(default=None, description="Relative time window in days (e.g., last 30 days)")
+    description: Optional[str] = Field(default=None, description="Human readable description of time constraint")
 
 
 class ComparisonFilter(BaseModel):
     """Details for queries comparing two entities (e.g. locations, depths, or time periods)."""
     comparison_type: str = Field(default="location", description="Entity type: 'location', 'depth', 'time', 'parameter'")
-    target_a: Optional[str] = Field(default=None, description="First comparison target name")
-    target_b: Optional[str] = Field(default=None, description="Second comparison target name")
+    target_a: Optional[str] = Field(default=None, description="First comparison target name/label")
+    target_b: Optional[str] = Field(default=None, description="Second comparison target name/label")
     location_a: Optional[LocationFilter] = None
     location_b: Optional[LocationFilter] = None
     depth_a: Optional[DepthFilter] = None
@@ -95,7 +97,7 @@ class StructuredQuery(BaseModel):
     intent: QueryIntent = Field(default=QueryIntent.UNKNOWN, description="Classified query intent")
     parameters: List[OceanParameter] = Field(default_factory=list, description="Target oceanographic variables")
     location: Optional[LocationFilter] = Field(default=None, description="Spatial criteria")
-    radius_km: Optional[float] = Field(default=None, ge=0.0, description="Search radius in kilometers")
+    radius_km: Optional[float] = Field(default=None, description="Search radius in kilometers")
     depth: Optional[DepthFilter] = Field(default=None, description="Vertical depth criteria")
     depth_min: Optional[float] = Field(default=None, description="Top-level convenience depth_min")
     depth_max: Optional[float] = Field(default=None, description="Top-level convenience depth_max")
@@ -136,6 +138,8 @@ class StructuredQuery(BaseModel):
                 "year": self.time_range.year,
                 "month": self.time_range.month,
                 "season": self.time_range.season,
+                "relative_days": self.time_range.relative_days,
+                "description": self.time_range.description,
             }
 
         comp_dict = None
@@ -144,6 +148,8 @@ class StructuredQuery(BaseModel):
                 "comparison_type": self.comparison.comparison_type,
                 "target_a": self.comparison.target_a,
                 "target_b": self.comparison.target_b,
+                "depth_a": self.comparison.depth_a.dict() if self.comparison.depth_a else None,
+                "depth_b": self.comparison.depth_b.dict() if self.comparison.depth_b else None,
             }
 
         return {

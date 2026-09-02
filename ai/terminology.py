@@ -20,49 +20,63 @@ PARAMETER_SYNONYMS: Dict[str, OceanParameter] = {
     "saltiness": OceanParameter.PSAL,
     "ocean salinity": OceanParameter.PSAL,
     "sea salinity": OceanParameter.PSAL,
+    "salinity profile": OceanParameter.PSAL,
 
     # Temperature (TEMP)
     "temperature": OceanParameter.TEMP,
     "temp": OceanParameter.TEMP,
     "sea temperature": OceanParameter.TEMP,
+    "sea water temperature": OceanParameter.TEMP,
+    "seawater temperature": OceanParameter.TEMP,
     "sea surface temperature": OceanParameter.TEMP,
     "water temperature": OceanParameter.TEMP,
+    "ocean temperature": OceanParameter.TEMP,
     "sst": OceanParameter.TEMP,
     "thermal": OceanParameter.TEMP,
     "heat": OceanParameter.TEMP,
     "warmth": OceanParameter.TEMP,
+    "temperature profile": OceanParameter.TEMP,
 
     # Pressure (PRES) / Depth
     "pressure": OceanParameter.PRES,
     "pres": OceanParameter.PRES,
     "dbar": OceanParameter.PRES,
     "decibar": OceanParameter.PRES,
+    "decibars": OceanParameter.PRES,
     "hydrostatic pressure": OceanParameter.PRES,
 
-    # Biogeochemical Parameters
+    # Biogeochemical Parameters: Dissolved Oxygen (DOXY)
     "oxygen": OceanParameter.DOXY,
     "dissolved oxygen": OceanParameter.DOXY,
+    "oxygen concentration": OceanParameter.DOXY,
     "doxy": OceanParameter.DOXY,
     "o2": OceanParameter.DOXY,
     "hypoxia": OceanParameter.DOXY,
+    "anoxia": OceanParameter.DOXY,
 
+    # Chlorophyll-a (CHLA)
     "chlorophyll": OceanParameter.CHLA,
     "chlorophyll-a": OceanParameter.CHLA,
     "chlorophyll a": OceanParameter.CHLA,
     "chla": OceanParameter.CHLA,
     "algae": OceanParameter.CHLA,
     "phytoplankton": OceanParameter.CHLA,
+    "fluorescence": OceanParameter.CHLA,
 
+    # Nitrate (NITRATE)
     "nitrate": OceanParameter.NITRATE,
     "no3": OceanParameter.NITRATE,
     "nutrients": OceanParameter.NITRATE,
 
+    # pH (PH_IN_SITU_TOTAL)
     "ph": OceanParameter.PH_IN_SITU_TOTAL,
     "acidity": OceanParameter.PH_IN_SITU_TOTAL,
     "ocean acidification": OceanParameter.PH_IN_SITU_TOTAL,
 
+    # Backscattering / Turbidity (BBP700)
     "turbidity": OceanParameter.BBP700,
     "backscatter": OceanParameter.BBP700,
+    "backscattering": OceanParameter.BBP700,
     "bbp700": OceanParameter.BBP700,
     "particle backscattering": OceanParameter.BBP700,
 }

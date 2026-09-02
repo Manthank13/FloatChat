@@ -7,6 +7,7 @@ DeterministicQueryParser with regex and oceanographic domain heuristics.
 """
 
 import abc
+import calendar
 import re
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -54,33 +55,51 @@ class DeterministicQueryParser(BaseQueryParser):
     # Regex patterns for ARGO Float / Platform WMO identifiers (e.g. 2903334, 5906432, 6901234)
     FLOAT_ID_PATTERNS = [
         re.compile(r"\b(?:float|platform|wmo|wmo\s*id|wmoid|argo)\s*(?:#|no\.?|num\.?)?\s*([1-7]\d{6})\b", re.IGNORECASE),
-        re.compile(r"\b\b([1-7]\d{6})\b"),  # Standard 7-digit ARGO WMO number
+        re.compile(r"\b([1-7]\d{6})\b"),  # Standard 7-digit ARGO WMO number
     ]
 
     # Regex patterns for Depth / Pressure
-    # e.g., "at 100 meters", "at 100m", "100 dbar", "depth 150 m"
+    # e.g., "at 100 meters", "at 100m", "at 200m", "100 dbar", "depth 150 m", "at 200 m"
     EXACT_DEPTH_PATTERN = re.compile(
         r"(?:at|depth\s*(?:of)?|level\s*(?:of)?)\s*(\d+(?:\.\d+)?)\s*(?:m\b|meters?\b|dbar\b|decibars?\b)",
         re.IGNORECASE,
     )
     
-    # e.g., "between 0 and 500 meters", "from 50m to 200m", "0 - 500 meters", "0 to 500m"
+    # Standalone depth e.g., "at 200m", "200m depth"
+    STANDALONE_DEPTH_PATTERN = re.compile(
+        r"\b(\d+(?:\.\d+)?)\s*(?:m|meters|dbar|decibars)\s+depth\b",
+        re.IGNORECASE,
+    )
+
+    # Depth range e.g., "between 0 and 500 meters", "between 100m and 500m", "from 50m to 200m", "0 - 500 meters", "0 to 500m"
     DEPTH_RANGE_PATTERN = re.compile(
         r"(?:between|from)?\s*(\d+(?:\.\d+)?)\s*(?:m|meters?|dbar)?\s*(?:to|and|-)\s*(\d+(?:\.\d+)?)\s*(?:m\b|meters?\b|dbar\b|decibars?\b)",
         re.IGNORECASE,
     )
 
-    # Regex patterns for Radius
-    # e.g., "within 50 km", "radius of 20km", "radius 100 km"
-    RADIUS_PATTERN = re.compile(
-        r"(?:within|radius\s*(?:of)?|around)\s*(\d+(?:\.\d+)?)\s*(?:km\b|kilometers?\b)",
+    # Depth comparison e.g., "compare ... at 100m and 500m", "at 100m vs 500m"
+    DEPTH_COMPARISON_PATTERN = re.compile(
+        r"(?:at\s+)?(\d+(?:\.\d+)?)\s*(?:m\b|meters?\b|dbar\b)?\s*(?:and|vs|versus|to)\s*(\d+(?:\.\d+)?)\s*(?:m\b|meters?\b|dbar\b)",
         re.IGNORECASE,
     )
 
-    # Regex patterns for explicit Coordinates
-    # e.g., "lat 13.08 lon 80.27", "13.08 N, 80.27 E", "latitude: 13.08, longitude: 80.27"
-    COORDS_PATTERN = re.compile(
-        r"(?:lat(?:itude)?\s*[:=]?\s*([+-]?\d+(?:\.\d+)?)\s*(?:[NS])?)[,\s]+(?:lon(?:gitude)?\s*[:=]?\s*([+-]?\d+(?:\.\d+)?)\s*(?:[EW])?)",
+    # Regex patterns for Radius & Offshore Distances
+    # e.g., "20 km offshore from Chennai", "within 50 km of Chennai", "radius of 20km", "radius 100 km", "50 km radius"
+    RADIUS_PATTERNS = [
+        re.compile(r"(\d+(?:\.\d+)?)\s*(?:km\b|kilometers?\b)\s*(?:offshore|off|radius)", re.IGNORECASE),
+        re.compile(r"(?:within|radius\s*(?:of)?|around|within\s+a\s+radius\s+of)\s*(\d+(?:\.\d+)?)\s*(?:km\b|kilometers?\b)", re.IGNORECASE),
+        re.compile(r"(\d+(?:\.\d+)?)\s*(?:km\b|kilometers?\b)\s*(?:radius|around)", re.IGNORECASE),
+    ]
+
+    # Regex patterns for explicit Geographic Coordinates
+    # e.g., "13.08 N, 80.27 E", "13.08N, 80.27E", "13.08°N, 80.27°E", "lat 13.08 lon 80.27", "latitude 13.08, longitude 80.27"
+    COORDS_CARDINAL_PATTERN = re.compile(
+        r"([+-]?\d+(?:\.\d+)?)\s*°?\s*([NSns])\s*[,/ ]+\s*([+-]?\d+(?:\.\d+)?)\s*°?\s*([EWew])",
+        re.IGNORECASE,
+    )
+    
+    COORDS_LABELED_PATTERN = re.compile(
+        r"(?:lat(?:itude)?\s*[:=]?\s*([+-]?\d+(?:\.\d+)?)\s*(?:[NSns])?)[,\s]+(?:lon(?:gitude)?\s*[:=]?\s*([+-]?\d+(?:\.\d+)?)\s*(?:[EWew])?)",
         re.IGNORECASE,
     )
 
@@ -101,8 +120,14 @@ class DeterministicQueryParser(BaseQueryParser):
         "december": 12, "dec": 12,
     }
 
+    # Relative time expressions (e.g. "last 30 days", "past 7 days", "over the last 30 days")
+    RELATIVE_DAYS_PATTERN = re.compile(
+        r"(?:over\s+the\s+|in\s+the\s+|for\s+the\s+)?(?:last|past)\s+(\d+)\s+(days?|weeks?|months?)",
+        re.IGNORECASE,
+    )
+
     # Comparison trigger phrases
-    COMPARISON_TRIGGERS = ["compare", "vs", "versus", "difference between", "differ from", "higher than", "lower than"]
+    COMPARISON_TRIGGERS = ["compare", "vs", "versus", "difference between", "differ from", "higher than", "lower than", "comparison"]
 
     def parse(self, query: str) -> StructuredQuery:
         """
@@ -117,18 +142,18 @@ class DeterministicQueryParser(BaseQueryParser):
         # 2. Extract Oceanographic Parameters
         parameters = self._extract_parameters(lower_query)
 
-        # 3. Extract Depth Criteria
-        depth_filter = self._extract_depth(lower_query)
+        # 3. Extract Comparison details (both location and depth comparisons)
+        comparison_filter = self._extract_comparison(lower_query, cleaned_query)
 
-        # 4. Extract Location and Radius
+        # 4. Extract Depth Criteria (if not already captured in depth comparison)
+        depth_filter = self._extract_depth(lower_query, comparison_filter)
+
+        # 5. Extract Location and Radius
         location_filter, explicit_radius = self._extract_location(lower_query, cleaned_query)
         radius_km = explicit_radius or (location_filter.radius_km if location_filter else None)
 
-        # 5. Extract Temporal Constraints
+        # 6. Extract Temporal Constraints
         time_range = self._extract_time_range(lower_query)
-
-        # 6. Extract Comparison details
-        comparison_filter = self._extract_comparison(lower_query, cleaned_query)
 
         # 7. Classify Intent
         intent = self._classify_intent(
@@ -148,6 +173,8 @@ class DeterministicQueryParser(BaseQueryParser):
             location=location_filter,
             depth=depth_filter,
             platform_id=platform_id,
+            time_range=time_range,
+            comparison=comparison_filter,
         )
 
         # 9. Build StructuredQuery
@@ -176,14 +203,17 @@ class DeterministicQueryParser(BaseQueryParser):
         for pattern in self.FLOAT_ID_PATTERNS:
             match = pattern.search(query)
             if match:
-                return match.group(1)
+                # Ensure it is not a year or depth value
+                candidate = match.group(1)
+                if len(candidate) == 7:
+                    return candidate
         return None
 
     def _extract_parameters(self, lower_query: str) -> List[OceanParameter]:
         """Identify standard ARGO parameters present in user query."""
         found_params: Set[OceanParameter] = set()
         
-        # Sort synonyms by length descending to match multi-word phrases first (e.g. "sea surface temperature")
+        # Sort synonyms by length descending to match multi-word phrases first (e.g. "oxygen concentration", "sea water temperature")
         sorted_synonyms = sorted(PARAMETER_SYNONYMS.items(), key=lambda x: len(x[0]), reverse=True)
         
         for synonym, param in sorted_synonyms:
@@ -194,22 +224,41 @@ class DeterministicQueryParser(BaseQueryParser):
 
         return list(found_params)
 
-    def _extract_depth(self, lower_query: str) -> Optional[DepthFilter]:
+    def _extract_depth(
+        self, lower_query: str, comparison_filter: Optional[ComparisonFilter]
+    ) -> Optional[DepthFilter]:
         """Extract explicit or descriptive depth layers from query."""
-        # Check range pattern first ("between 0 and 500 meters")
-        range_match = self.DEPTH_RANGE_PATTERN.search(lower_query)
-        if range_match:
-            d_min = float(range_match.group(1))
-            d_max = float(range_match.group(2))
-            # Normalize if user said "from 500 to 0"
-            if d_min > d_max:
-                d_min, d_max = d_max, d_min
-            return DepthFilter(depth_min=d_min, depth_max=d_max, unit="meters")
+        # If comparison is on depth, return the primary or None
+        if comparison_filter and comparison_filter.comparison_type == "depth":
+            return comparison_filter.depth_a
 
-        # Check exact depth pattern ("at 100 meters", "depth 100m")
+        # Check range pattern first ("between 0 and 500 meters", "between 100m and 500m")
+        # Ensure it's not a comparison trigger (e.g. "compare salinity at 100m and 500m")
+        is_comparison = any(trigger in lower_query for trigger in self.COMPARISON_TRIGGERS)
+        if not is_comparison:
+            range_match = self.DEPTH_RANGE_PATTERN.search(lower_query)
+            if range_match:
+                d_min = float(range_match.group(1))
+                d_max = float(range_match.group(2))
+                if d_min > d_max:
+                    d_min, d_max = d_max, d_min
+                return DepthFilter(depth_min=d_min, depth_max=d_max, unit="meters")
+
+        # Check exact depth pattern ("at 100 meters", "at 100m", "at 200m")
         exact_match = self.EXACT_DEPTH_PATTERN.search(lower_query)
         if exact_match:
             target_d = float(exact_match.group(1))
+            return DepthFilter(
+                depth_min=target_d,
+                depth_max=target_d,
+                target_depth=target_d,
+                unit="meters",
+            )
+
+        # Check standalone depth pattern ("200m depth")
+        standalone_match = self.STANDALONE_DEPTH_PATTERN.search(lower_query)
+        if standalone_match:
+            target_d = float(standalone_match.group(1))
             return DepthFilter(
                 depth_min=target_d,
                 depth_max=target_d,
@@ -233,14 +282,37 @@ class DeterministicQueryParser(BaseQueryParser):
         self, lower_query: str, original_query: str
     ) -> Tuple[Optional[LocationFilter], Optional[float]]:
         """Extract recognized geographical location, bounding box, coordinates, and radius."""
-        # Check for explicit radius (e.g. "within 50 km")
+        # Check for explicit radius using all patterns
         explicit_radius: Optional[float] = None
-        radius_match = self.RADIUS_PATTERN.search(lower_query)
-        if radius_match:
-            explicit_radius = float(radius_match.group(1))
+        for pattern in self.RADIUS_PATTERNS:
+            radius_match = pattern.search(lower_query)
+            if radius_match:
+                explicit_radius = float(radius_match.group(1))
+                break
 
-        # Check for numeric lat/lon coordinates
-        coords_match = self.COORDS_PATTERN.search(original_query)
+        # 1. Check for Cardinal Coordinates (e.g. "13.08 N, 80.27 E" or "13.08°N, 80.27°E")
+        cardinal_match = self.COORDS_CARDINAL_PATTERN.search(original_query)
+        if cardinal_match:
+            lat_val = float(cardinal_match.group(1))
+            lat_dir = cardinal_match.group(2).upper()
+            lon_val = float(cardinal_match.group(3))
+            lon_dir = cardinal_match.group(4).upper()
+
+            lat = -lat_val if lat_dir == "S" else lat_val
+            lon = -lon_val if lon_dir == "W" else lon_val
+
+            return (
+                LocationFilter(
+                    name=f"Point ({lat}, {lon})",
+                    latitude=lat,
+                    longitude=lon,
+                    radius_km=explicit_radius or 25.0,
+                ),
+                explicit_radius,
+            )
+
+        # 2. Check for Labeled Coordinates (e.g. "lat 13.08 lon 80.27")
+        coords_match = self.COORDS_LABELED_PATTERN.search(original_query)
         if coords_match:
             lat = float(coords_match.group(1))
             lon = float(coords_match.group(2))
@@ -254,7 +326,7 @@ class DeterministicQueryParser(BaseQueryParser):
                 explicit_radius,
             )
 
-        # Check known ocean geographic names (sorted by name length descending to catch e.g. "Equatorial Indian Ocean")
+        # 3. Check known ocean geographic names (sorted by name length descending)
         sorted_locs = sorted(KNOWN_OCEAN_LOCATIONS.items(), key=lambda x: len(x[0]), reverse=True)
         for loc_key, loc_info in sorted_locs:
             pattern = rf"\b{re.escape(loc_key)}\b"
@@ -281,7 +353,25 @@ class DeterministicQueryParser(BaseQueryParser):
         return None, explicit_radius
 
     def _extract_time_range(self, lower_query: str) -> Optional[TimeRangeFilter]:
-        """Extract temporal boundaries, year, month, or season."""
+        """Extract temporal boundaries, year, month, season, or relative window."""
+        # 1. Check for relative time window (e.g., "last 30 days", "past 2 weeks")
+        rel_match = self.RELATIVE_DAYS_PATTERN.search(lower_query)
+        if rel_match:
+            count = int(rel_match.group(1))
+            unit = rel_match.group(2).lower()
+            if "week" in unit:
+                days = count * 7
+            elif "month" in unit:
+                days = count * 30
+            else:
+                days = count
+
+            return TimeRangeFilter(
+                relative_days=days,
+                description=f"last {days} days",
+            )
+
+        # 2. Check for Year, Month, Season
         year: Optional[int] = None
         month: Optional[int] = None
         season: Optional[str] = None
@@ -303,13 +393,20 @@ class DeterministicQueryParser(BaseQueryParser):
         if year or month or season:
             start_date = None
             end_date = None
+            desc = ""
             if year and month:
+                last_day = calendar.monthrange(year, month)[1]
                 start_date = f"{year:04d}-{month:02d}-01"
-                # Approximation for month end
-                end_date = f"{year:04d}-{month:02d}-28"
+                end_date = f"{year:04d}-{month:02d}-{last_day:02d}"
+                month_name_str = [k for k, v in self.MONTHS.items() if v == month and len(k) > 3][0].capitalize()
+                desc = f"{month_name_str} {year}"
             elif year:
                 start_date = f"{year:04d}-01-01"
                 end_date = f"{year:04d}-12-31"
+                desc = f"{year}"
+
+            if season:
+                desc = f"{desc} {season}".strip()
 
             return TimeRangeFilter(
                 start_date=start_date,
@@ -317,17 +414,31 @@ class DeterministicQueryParser(BaseQueryParser):
                 year=year,
                 month=month,
                 season=season,
+                description=desc if desc else None,
             )
 
         return None
 
     def _extract_comparison(self, lower_query: str, original_query: str) -> Optional[ComparisonFilter]:
-        """Identify comparison queries and extract comparison targets."""
+        """Identify comparison queries (depth-level or location-level)."""
         is_comparison = any(trigger in lower_query for trigger in self.COMPARISON_TRIGGERS)
         if not is_comparison:
             return None
 
-        # Check for "X vs Y" or "compare X and Y" between known locations
+        # 1. Check for Depth comparison: e.g., "compare salinity at 100m and 500m"
+        depth_comp_match = self.DEPTH_COMPARISON_PATTERN.search(lower_query)
+        if depth_comp_match:
+            d_a = float(depth_comp_match.group(1))
+            d_b = float(depth_comp_match.group(2))
+            return ComparisonFilter(
+                comparison_type="depth",
+                target_a=f"{d_a}m",
+                target_b=f"{d_b}m",
+                depth_a=DepthFilter(target_depth=d_a, depth_min=d_a, depth_max=d_a, unit="meters"),
+                depth_b=DepthFilter(target_depth=d_b, depth_min=d_b, depth_max=d_b, unit="meters"),
+            )
+
+        # 2. Check for Location comparison: e.g., "compare Arabian Sea vs Bay of Bengal"
         found_locations: List[Dict[str, Any]] = []
         for loc_key, loc_info in KNOWN_OCEAN_LOCATIONS.items():
             if re.search(rf"\b{re.escape(loc_key)}\b", lower_query):
@@ -366,8 +477,9 @@ class DeterministicQueryParser(BaseQueryParser):
     ) -> QueryIntent:
         """Classify user intent based on extracted entities and keywords."""
         # 1. Float / Platform specific query
-        if platform_id or any(word in lower_query for word in ["trajectory", "track float", "float status"]):
-            return QueryIntent.FLOAT_QUERY
+        if platform_id or any(word in lower_query for word in ["trajectory", "track float", "float status", "argo float"]):
+            if platform_id:
+                return QueryIntent.FLOAT_QUERY
 
         # 2. Comparison query
         if comparison_filter is not None:
@@ -378,11 +490,11 @@ class DeterministicQueryParser(BaseQueryParser):
             return QueryIntent.PROFILE_QUERY
 
         # 4. Temporal query (trend / time-series / specific historical span without single depth)
-        if time_range is not None and any(w in lower_query for w in ["trend", "history", "time series", "over time", "change"]):
+        if time_range is not None:
             return QueryIntent.TEMPORAL_QUERY
 
-        # 5. Spatial query (geographic area / region / bounding box specified)
-        if location_filter is not None and (location_filter.bounding_box is not None or len(parameters) > 0):
+        # 5. Spatial query (geographic area / region / bounding box / radius search)
+        if location_filter is not None or any(w in lower_query for w in ["near", "within", "around", "offshore"]):
             return QueryIntent.SPATIAL_QUERY
 
         # 6. Fallback if parameters are present
@@ -399,6 +511,8 @@ class DeterministicQueryParser(BaseQueryParser):
         location: Optional[LocationFilter],
         depth: Optional[DepthFilter],
         platform_id: Optional[str],
+        time_range: Optional[TimeRangeFilter],
+        comparison: Optional[ComparisonFilter],
     ) -> float:
         """Compute confidence score for the extraction (0.0 to 1.0)."""
         if intent == QueryIntent.UNKNOWN:
@@ -413,6 +527,10 @@ class DeterministicQueryParser(BaseQueryParser):
             score += 0.1
         if platform_id:
             score += 0.25
+        if time_range:
+            score += 0.1
+        if comparison:
+            score += 0.15
 
         return min(1.0, round(score, 2))
 
@@ -423,21 +541,21 @@ class DeterministicQueryParser(BaseQueryParser):
         # Validate unknown intent
         if sq.intent == QueryIntent.UNKNOWN:
             errors.append("Unable to determine oceanographic intent from query.")
+            errors.append("No recognized oceanographic parameters (e.g. salinity, temperature) or ARGO platform found.")
 
         # Validate parameters vs intent
         if sq.intent in [QueryIntent.PROFILE_QUERY, QueryIntent.SPATIAL_QUERY, QueryIntent.COMPARISON_QUERY]:
-            if not sq.parameters and not sq.platform_id:
-                # If location is present but no parameter, default to Temperature or note warning
+            if not sq.parameters and not sq.platform_id and not (sq.location and ("argo" in sq.raw_query.lower() or "measurement" in sq.raw_query.lower())):
                 errors.append("No specific oceanographic parameter (e.g. salinity, temperature) identified.")
 
         # Validate coordinates if present
         if sq.location:
             if sq.location.latitude is not None:
                 if not (-90.0 <= sq.location.latitude <= 90.0):
-                    errors.append(f"Latitude {sq.location.latitude} out of valid range [-90, 90].")
+                    errors.append(f"Latitude {sq.location.latitude} is out of valid range [-90, 90].")
             if sq.location.longitude is not None:
                 if not (-180.0 <= sq.location.longitude <= 180.0):
-                    errors.append(f"Longitude {sq.location.longitude} out of valid range [-180, 180].")
+                    errors.append(f"Longitude {sq.location.longitude} is out of valid range [-180, 180].")
 
         # Validate depth constraints
         if sq.depth:
@@ -458,4 +576,9 @@ class DeterministicQueryParser(BaseQueryParser):
 
         sq.validation_errors = errors
         sq.is_valid = len(errors) == 0
+        
+        # Lower confidence if invalid
+        if not sq.is_valid:
+            sq.confidence = min(sq.confidence, 0.2)
+
         return sq
