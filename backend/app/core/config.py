@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Optional, Union
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     ARGO_REQUEST_TIMEOUT: float = 15.0
     ARGO_MAX_RECORDS: int = 500
 
+    # Supabase Authentication Readiness Configuration (Future Integration)
+    SUPABASE_URL: Optional[str] = None
+    SUPABASE_KEY: Optional[str] = None
+    SUPABASE_JWT_SECRET: Optional[str] = None
+
     # CORS configuration
     CORS_ORIGINS: Union[List[str], str] = [
         "http://localhost:3000",
@@ -30,10 +35,22 @@ class Settings(BaseSettings):
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
         if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
+            return [i.strip() for i in v.split(",") if i.strip()]
         elif isinstance(v, list):
             return v
         return v
+
+    def is_production(self) -> bool:
+        """Returns True if running in production environment."""
+        return self.ENVIRONMENT.strip().lower() in ("production", "prod")
+
+    def is_testing(self) -> bool:
+        """Returns True if running in testing environment."""
+        return self.ENVIRONMENT.strip().lower() in ("testing", "test")
+
+    def is_development(self) -> bool:
+        """Returns True if running in development environment."""
+        return not self.is_production() and not self.is_testing()
 
     model_config = SettingsConfigDict(
         env_file=".env",

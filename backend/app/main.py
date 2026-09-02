@@ -1,13 +1,19 @@
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.exceptions import global_exception_handler, http_exception_handler
+from app.core.exceptions import (
+    global_exception_handler,
+    http_exception_handler,
+    validation_exception_handler,
+)
 from app.core.logging import logger
+from app.middleware.request_id import RequestIDMiddleware
 
 
 @asynccontextmanager
@@ -29,6 +35,9 @@ def create_application() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Register Correlation ID Middleware
+    app.add_middleware(RequestIDMiddleware)
+
     # Configure CORS
     if settings.CORS_ORIGINS:
         app.add_middleware(
@@ -37,10 +46,12 @@ def create_application() -> FastAPI:
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
+            expose_headers=["X-Request-ID"],
         )
 
     # Register Exception Handlers
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+    app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.add_exception_handler(Exception, global_exception_handler)
 
     # Include API Routers
