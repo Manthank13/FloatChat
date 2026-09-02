@@ -13,14 +13,32 @@ from app.core.exceptions import (
     validation_exception_handler,
 )
 from app.core.logging import logger
+from app.db.repositories.user import UserRepository
+from app.db.session import MongoDBManager
 from app.middleware.request_id import RequestIDMiddleware
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Lifespan context manager for startup and shutdown events."""
+    """Lifespan context manager for application startup and shutdown events."""
     logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION} [{settings.ENVIRONMENT}]")
+
+    # Initialize MongoDB connection if MONGODB_URI configured
+    try:
+        await MongoDBManager.connect()
+        user_repo = UserRepository()
+        await user_repo.create_indexes()
+    except Exception as exc:
+        logger.warning(f"MongoDB startup connection warning: {exc}")
+
     yield
+
+    # Teardown MongoDB client connection
+    try:
+        await MongoDBManager.disconnect()
+    except Exception as exc:
+        logger.warning(f"MongoDB shutdown disconnect error: {exc}")
+
     logger.info(f"Shutting down {settings.PROJECT_NAME}")
 
 

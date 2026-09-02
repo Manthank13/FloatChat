@@ -4,6 +4,8 @@ from fastapi import Request, status
 from fastapi.testclient import TestClient
 from app.api.deps import get_current_user_optional
 from app.core.exceptions import global_exception_handler
+from app.core.security import create_access_token
+from app.db.repositories.user import UserRepository
 from app.services.mock import MockArgoDataSource
 
 
@@ -30,6 +32,7 @@ def test_readiness_probe_endpoint(client: TestClient) -> None:
         assert data["status"] == "ready"
         assert data["data_provider"] == "mock"
         assert data["checks"]["config_loaded"] is True
+        assert "mongodb_connected" in data["checks"]
 
 
 def test_clean_validation_error_format(client: TestClient) -> None:
@@ -50,10 +53,19 @@ async def test_auth_readiness_dependency_stub() -> None:
     res_none = await get_current_user_optional(authorization=None)
     assert res_none is None
 
-    # Bearer token present -> returns unverified token context
-    res_token = await get_current_user_optional(authorization="Bearer test_jwt_token_abc123")
-    assert res_token is not None
-    assert res_token["status"] == "unverified_token_present"
+    # Invalid token -> returns None
+    res_invalid = await get_current_user_optional(authorization="Bearer test_jwt_token_invalid")
+    assert res_invalid is None
+
+    # Valid token with created user -> returns UserResponse
+    repo = UserRepository(db=None)
+    user = await repo.create_user(email="valid@floatchat.org", password_hash="hash", display_name="Valid User")
+    token = create_access_token(subject=user.id)
+
+    with patch("app.api.deps.UserRepository", return_value=repo):
+        res_valid = await get_current_user_optional(authorization=f"Bearer {token}")
+        assert res_valid is not None
+        assert res_valid.email == "valid@floatchat.org"
 
 
 @pytest.mark.asyncio

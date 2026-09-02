@@ -18,10 +18,14 @@ class Settings(BaseSettings):
     ARGO_REQUEST_TIMEOUT: float = 15.0
     ARGO_MAX_RECORDS: int = 500
 
-    # Supabase Authentication Readiness Configuration (Future Integration)
-    SUPABASE_URL: Optional[str] = None
-    SUPABASE_KEY: Optional[str] = None
-    SUPABASE_JWT_SECRET: Optional[str] = None
+    # MongoDB Atlas Database Configuration
+    MONGODB_URI: Optional[str] = None
+    MONGODB_DATABASE: str = "floatchat"
+
+    # Native JWT Authentication Configuration
+    JWT_SECRET_KEY: str = "floatchat-dev-secret-key-replace-in-production-123456789"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     # CORS configuration
     CORS_ORIGINS: Union[List[str], str] = [
@@ -51,6 +55,21 @@ class Settings(BaseSettings):
     def is_development(self) -> bool:
         """Returns True if running in development environment."""
         return not self.is_production() and not self.is_testing()
+
+    @property
+    def has_mongodb_credentials(self) -> bool:
+        """Returns True if MONGODB_URI has non-empty, non-placeholder configuration."""
+        if not self.MONGODB_URI:
+            return False
+        uri = self.MONGODB_URI.strip()
+        return bool(uri and "<CLUSTER_HOST>" not in uri and "<PASSWORD>" not in uri)
+
+    @property
+    def is_mongodb_configured(self) -> bool:
+        """Returns True if MongoDB is configured and active for the current environment."""
+        if self.is_testing():
+            return False
+        return self.has_mongodb_credentials
 
     model_config = SettingsConfigDict(
         env_file=".env",
