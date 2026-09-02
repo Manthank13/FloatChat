@@ -7,7 +7,7 @@ These schemas define the interface contract between the Natural Language Underst
 
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class QueryIntent(str, Enum):
@@ -52,8 +52,22 @@ class LocationFilter(BaseModel):
     name: Optional[str] = Field(default=None, description="Recognized marine region or coastal place name")
     latitude: Optional[float] = Field(default=None, description="Latitude in decimal degrees")
     longitude: Optional[float] = Field(default=None, description="Longitude in decimal degrees")
-    bounding_box: Optional[BoundingBox] = Field(default=None, description="Spatial bounding box if applicable")
+    bounding_box: Optional[Union[BoundingBox, Tuple[float, float, float, float], List[float]]] = Field(
+        default=None, description="Spatial bounding box if applicable"
+    )
     radius_km: Optional[float] = Field(default=None, description="Radial search distance in km")
+
+    @field_validator("bounding_box", mode="before")
+    @classmethod
+    def convert_bbox(cls, v: Any) -> Any:
+        if isinstance(v, (tuple, list)) and len(v) == 4:
+            return BoundingBox(
+                min_latitude=float(v[0]),
+                min_longitude=float(v[1]),
+                max_latitude=float(v[2]),
+                max_longitude=float(v[3]),
+            )
+        return v
 
 
 class DepthFilter(BaseModel):
@@ -114,20 +128,23 @@ class StructuredQuery(BaseModel):
         """
         loc_dict = None
         if self.location:
-            loc_dict = {
-                "name": self.location.name,
-                "latitude": self.location.latitude,
-                "longitude": self.location.longitude,
-                "bounding_box": (
-                    [
+            bbox_coords = None
+            if self.location.bounding_box:
+                if isinstance(self.location.bounding_box, BoundingBox):
+                    bbox_coords = [
                         self.location.bounding_box.min_latitude,
                         self.location.bounding_box.min_longitude,
                         self.location.bounding_box.max_latitude,
                         self.location.bounding_box.max_longitude,
                     ]
-                    if self.location.bounding_box
-                    else None
-                ),
+                elif isinstance(self.location.bounding_box, (list, tuple)):
+                    bbox_coords = list(self.location.bounding_box)
+
+            loc_dict = {
+                "name": self.location.name,
+                "latitude": self.location.latitude,
+                "longitude": self.location.longitude,
+                "bounding_box": bbox_coords,
             }
 
         time_dict = None
@@ -148,8 +165,16 @@ class StructuredQuery(BaseModel):
                 "comparison_type": self.comparison.comparison_type,
                 "target_a": self.comparison.target_a,
                 "target_b": self.comparison.target_b,
-                "depth_a": self.comparison.depth_a.dict() if self.comparison.depth_a else None,
-                "depth_b": self.comparison.depth_b.dict() if self.comparison.depth_b else None,
+                "depth_a": (
+                    self.comparison.depth_a.model_dump()
+                    if hasattr(self.comparison.depth_a, "model_dump")
+                    else (self.comparison.depth_a.dict() if self.comparison.depth_a else None)
+                ),
+                "depth_b": (
+                    self.comparison.depth_b.model_dump()
+                    if hasattr(self.comparison.depth_b, "model_dump")
+                    else (self.comparison.depth_b.dict() if self.comparison.depth_b else None)
+                ),
             }
 
         return {
