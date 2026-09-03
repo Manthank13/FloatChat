@@ -1,0 +1,124 @@
+/* ==========================================================================
+   Leaflet Custom Styling for FloatChat Ocean Map
+   ========================================================================== */
+
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-deep) !important;
+  font-family: var(--font-main);
+  outline: none;
+}
+
+/* Custom dark ocean map filter */
+.leaflet-tile-pane {
+  filter: brightness(0.9) contrast(1.15) saturate(1.2);
+}
+
+[data-theme="light"] .leaflet-tile-pane {
+  filter: brightness(0.96) contrast(1.05) saturate(1.1);
+}
+
+/* Custom Map Controls */
+.leaflet-bar {
+  border: 1px solid var(--border-light) !important;
+  box-shadow: var(--shadow-elevated) !important;
+  border-radius: var(--radius-md) !important;
+  overflow: hidden;
+}
+
+.leaflet-bar a {
+  background-color: var(--glass-panel-elevated) !important;
+  color: var(--cyan-primary) !important;
+  border-bottom: 1px solid var(--border-light) !important;
+  backdrop-filter: blur(8px);
+  transition: all var(--transition-fast);
+}
+
+.leaflet-bar a:hover {
+  background-color: var(--data-surface-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Custom Float Marker */
+.argo-marker-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+}
+
+.argo-pulse-ring {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--cyan-primary);
+  animation: sonarPulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+  pointer-events: none;
+}
+
+.argo-marker-core {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--cyan-primary);
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 12px var(--cyan-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.argo-marker-core.active {
+  background: #00E5FF;
+  box-shadow: 0 0 10px #00E5FF;
+}
+
+.argo-marker-core.profiling {
+  background: #10B981;
+  box-shadow: 0 0 10px #10B981;
+}
+
+.argo-marker-core.surface {
+  background: #F59E0B;
+  box-shadow: 0 0 10px #F59E0B;
+}
+
+.argo-marker-core.selected {
+  transform: scale(1.35);
+  border-color: #ffffff;
+  box-shadow: 0 0 18px var(--cyan-primary), 0 0 30px var(--cyan-glow);
+}
+
+/* Map Popups */
+.leaflet-popup-content-wrapper {
+  background: var(--glass-panel-elevated) !important;
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--data-border-active) !important;
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-hud) !important;
+  padding: 4px;
+}
+
+.leaflet-popup-tip {
+  background: var(--glass-panel-elevated) !important;
+  border: 1px solid var(--data-border-active) !important;
+}
+
+.leaflet-popup-content {
+  margin: 10px 14px !important;
+  line-height: 1.4 !important;
+}
+
+.leaflet-container a.leaflet-popup-close-button {
+  color: var(--text-secondary) !important;
+  padding: 6px !important;
+}
+
+.leaflet-container a.leaflet-popup-close-button:hover {
+  color: var(--cyan-primary) !important;
+}
