@@ -1,0 +1,250 @@
+/* ==========================================================================
+   FloatChat — Climate Intelligence & Disaster Resilience Design System
+   Dual-Theme Engine: Deep Ocean Dark & Scientific Clean Light
+   ========================================================================== */
+
+:root,
+[data-theme="dark"] {
+  /* LAYER 1: Deep Ocean Backgrounds & Atmospheric Haze */
+  --bg-abyss: #020611;
+  --bg-midnight: #040D1E;
+  --bg-deep: #07172F;
+  --bg-surface: #0B2244;
+  --bg-haze: rgba(4, 13, 30, 0.7);
+
+  /* LAYER 2: Scientific Data Surfaces (High-Precision / Transparent) */
+  --data-surface: rgba(7, 23, 47, 0.5);
+  --data-surface-hover: rgba(11, 34, 68, 0.75);
+  --data-border: rgba(56, 189, 248, 0.14);
+  --data-border-active: rgba(0, 229, 255, 0.4);
+
+  /* LAYER 3: Glassmorphic Scientific Panels & Controls */
+  --glass-panel: rgba(8, 26, 52, 0.65);
+  --glass-panel-elevated: rgba(10, 31, 62, 0.85);
+  --glass-panel-hover: rgba(14, 40, 78, 0.9);
+  --glass-border: rgba(56, 189, 248, 0.18);
+  --glass-border-focus: rgba(0, 229, 255, 0.55);
+  --glass-highlight: inset 0 1px 1px rgba(255, 255, 255, 0.1), inset 0 0 14px rgba(0, 229, 255, 0.04);
+  --glass-blur: blur(20px);
+
+  /* Scientific Mission Control Color Palette */
+  --cyan-primary: #00E5FF;
+  --cyan-subtle: rgba(0, 229, 255, 0.12);
+  --cyan-glow: rgba(0, 229, 255, 0.35);
+  --electric-blue: #0284C7;
+  --sky-core: #38BDF8;
+  --teal-restrained: #0D9488;
+  --indigo-secondary: #818CF8;
+  --violet-secondary: #A78BFA;
+  --amber-warning: #F59E0B;
+  --red-critical: #F43F5E;
+  --emerald-nominal: #10B981;
+
+  /* Typography Colors */
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --text-cyan: #38BDF8;
+  --text-dark: #020611;
+
+  /* Subtle Shadows & Glows */
+  --shadow-subtle: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --shadow-elevated: 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 24px rgba(0, 229, 255, 0.06);
+  --shadow-hud: 0 10px 40px rgba(2, 6, 17, 0.85), 0 0 20px rgba(0, 229, 255, 0.18);
+  --glow-cyan: 0 0 20px rgba(0, 229, 255, 0.3);
+
+  /* Form controls */
+  --input-bg: rgba(6, 18, 35, 0.8);
+  --input-border: rgba(56, 189, 248, 0.2);
+  --input-focus-border: var(--cyan-primary);
+  --input-focus-glow: rgba(0, 229, 255, 0.25);
+
+  /* Global */
+  --border-light: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.05);
+
+  /* Scrollbar */
+  --scrollbar-track: rgba(2, 6, 17, 0.6);
+  --scrollbar-thumb: rgba(56, 189, 248, 0.22);
+  --scrollbar-thumb-hover: rgba(0, 229, 255, 0.45);
+}
+
+/* ==========================================================================
+   LIGHT THEME: Natural, Realistic, Premium Climate Intelligence Command Center
+   ========================================================================== */
+[data-theme="light"] {
+  /* LAYER 1: Cool Crisp Coastal Slate-White (Not harsh #FFFFFF glare) */
+  --bg-abyss: #F4F7FB;
+  --bg-midnight: #FFFFFF;
+  --bg-deep: #EBF1F7;
+  --bg-surface: #E1EBF5;
+  --bg-haze: rgba(235, 241, 247, 0.85);
+
+  /* LAYER 2: Scientific Data Surfaces (Clean, Solid White & Ice Tinted Panels) */
+  --data-surface: #FFFFFF;
+  --data-surface-hover: #F0F5FA;
+  --data-border: rgba(2, 132, 199, 0.15);
+  --data-border-active: rgba(2, 132, 199, 0.45);
+
+  /* LAYER 3: Glassmorphic Scientific Panels & Controls */
+  --glass-panel: rgba(255, 255, 255, 0.92);
+  --glass-panel-elevated: #FFFFFF;
+  --glass-panel-hover: #FFFFFF;
+  --glass-border: rgba(148, 163, 184, 0.28);
+  --glass-border-focus: rgba(2, 132, 199, 0.6);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 1), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --glass-blur: blur(16px);
+
+  /* Scientific Mission Control Color Palette (High-Contrast for Light Surfaces) */
+  --cyan-primary: #0284C7;
+  --cyan-subtle: rgba(2, 132, 199, 0.08);
+  --cyan-glow: rgba(2, 132, 199, 0.2);
+  --electric-blue: #0369A1;
+  --sky-core: #0284C7;
+  --teal-restrained: #0F766E;
+  --indigo-secondary: #4338CA;
+  --violet-secondary: #6D28D9;
+  --amber-warning: #D97706;
+  --red-critical: #E11D48;
+  --emerald-nominal: #059669;
+
+  /* Typography Colors: Deep Command Navy & Slate Gray */
+  --text-primary: #0A192F;
+  --text-secondary: #334155;
+  --text-muted: #64748B;
+  --text-cyan: #0284C7;
+  --text-dark: #0A192F;
+
+  /* Realistic Diffuse Ambient Shadows */
+  --shadow-subtle: 0 2px 8px -1px rgba(15, 23, 42, 0.05), 0 1px 3px -1px rgba(15, 23, 42, 0.03);
+  --shadow-elevated: 0 10px 25px -3px rgba(15, 23, 42, 0.07), 0 4px 10px -2px rgba(15, 23, 42, 0.03);
+  --shadow-hud: 0 12px 32px -4px rgba(15, 23, 42, 0.1), 0 0 12px rgba(2, 132, 199, 0.05);
+  --glow-cyan: 0 0 16px rgba(2, 132, 199, 0.16);
+
+  /* Form controls */
+  --input-bg: #FFFFFF;
+  --input-border: rgba(148, 163, 184, 0.35);
+  --input-focus-border: #0284C7;
+  --input-focus-glow: rgba(2, 132, 199, 0.18);
+
+  /* Global Borders */
+  --border-light: rgba(15, 23, 42, 0.08);
+  --border-subtle: rgba(15, 23, 42, 0.04);
+
+  /* Scrollbar */
+  --scrollbar-track: #F1F5F9;
+  --scrollbar-thumb: rgba(148, 163, 184, 0.4);
+  --scrollbar-thumb-hover: rgba(2, 132, 199, 0.6);
+}
+
+:root {
+  /* Typography */
+  --font-main: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-smooth: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Custom Scientific Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* Keyframe Animations */
+@keyframes sonarPulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(0, 229, 255, 0.6);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 12px rgba(0, 229, 255, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(0, 229, 255, 0);
+  }
+}
+
+@keyframes lightRayDrift {
+  0%, 100% {
+    opacity: 0.22;
+    transform: rotate(-10deg) translateY(0);
+  }
+  50% {
+    opacity: 0.4;
+    transform: rotate(-8deg) translateY(-10px);
+  }
+}
+
+@keyframes floatBob {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes revealDepth {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes radarSweep {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes telemetryProgress {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.92); }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

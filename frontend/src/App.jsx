@@ -1,280 +1,604 @@
-﻿import { useState, useEffect, useRef } from 'react'
-import './App.css'
+import { useState, useEffect } from 'react';
+import Navbar from './components/Navbar';
+import Sidebar from './components/Sidebar';
+import OceanBackground from './components/OceanBackground';
+import WatchlistModal from './components/WatchlistModal';
+import LocationPermissionModal from './components/auth/LocationPermissionModal';
+import AlertSettingsModal from './components/user/AlertSettingsModal';
+import Home from './pages/Home';
+import Explore from './pages/Explore';
+import OceanData from './pages/OceanData';
+import SignalInspect from './pages/SignalInspect';
+import About from './pages/About';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import ForgotPassword from './pages/ForgotPassword';
+import { queryClimateIntelligence, checkSystemHealth } from './api/climateApi';
+import { useAuth } from './context/useAuth';
+import { Activity, Radio } from 'lucide-react';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
+const INITIAL_MISSION_LOGS = [
+  {
+    id: "conv-01",
+    title: "Chennai Cyclone Risk & Ocean Heat Assessment",
+    basin: "Bay of Bengal",
+    time: "Today, 10:42 AM",
+    query: "Is Chennai at increased cyclone risk due to ocean warming and barrier layers?"
+  },
+  {
+    id: "conv-02",
+    title: "Comparative Analysis: Chennai vs Mumbai Coastal Basins",
+    basin: "Comparative",
+    time: "Yesterday, 04:15 PM",
+    query: "Compare climate risk and environmental conditions between Chennai and Mumbai."
+  },
+  {
+    id: "conv-03",
+    title: "Andaman Sea Marine Heatwave & Ecological Stress",
+    basin: "Andaman Sea",
+    time: "2 days ago",
+    query: "Analyze thermal anomalies and marine heatwave potential in the Andaman Sea."
+  },
+  {
+    id: "conv-04",
+    title: "Kolkata & Ganges Plume Halocline Stratification",
+    basin: "Bay of Bengal",
+    time: "3 days ago",
+    query: "What environmental signals indicate increased coastal flooding risk in the northern Bay of Bengal?"
+  }
+];
 
-const SUGGESTED_QUERIES = [
-  "What is the salinity near Chennai at 100 meters?",
-  "Show Argo floats operating in the Bay of Bengal.",
-  "What is the average temperature near Kochi between 50 and 200m?",
-  "Compare salinity in the Arabian Sea and Bay of Bengal.",
-  "What is the mixed layer depth near Chennai?"
-]
+function inferBasinFromQuery(text) {
+  const t = (text || "").toLowerCase();
+  if (t.includes('compare') || (t.includes('chennai') && t.includes('mumbai'))) return 'Comparative';
+  if (t.includes('chennai') || t.includes('bengal') || t.includes('kolkata') || t.includes('bob')) return 'Bay of Bengal';
+  if (t.includes('mumbai') || t.includes('arabian') || t.includes('goa') || t.includes('kochi')) return 'Arabian Sea';
+  if (t.includes('andaman') || t.includes('nicobar')) return 'Andaman Sea';
+  if (t.includes('equatorial')) return 'Equatorial';
+  return 'Regional Basin';
+}
 
 export default function App() {
-  const [messages, setMessages] = useState([])
-  const [inputQuery, setInputQuery] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [sessionId, setSessionId] = useState(() => 'sess-' + Math.random().toString(36).substring(2, 9))
-  const [backendHealthy, setBackendHealthy] = useState(null)
-  const [activeTab, setActiveTab] = useState('chat') // 'chat' | 'indicators'
-  const messagesEndRef = useRef(null)
+  const { user, isAuthenticated, loading: authLoading, locationPreference } = useAuth();
 
-  // Check backend health on mount
+  // Authentication view state: 'login' | 'signup' | 'forgot-password'
+  const [authView, setAuthView] = useState(() => {
+    const path = window.location.pathname;
+    if (path === '/signup') return 'signup';
+    if (path === '/forgot-password') return 'forgot-password';
+    return 'login';
+  });
+
+  // Application page state: 'chat' | 'explore' | 'data' | 'about' | 'inspect'
+  const [activePage, setActivePage] = useState('chat');
+  const [inspectedSignal, setInspectedSignal] = useState(null);
+  const [inspectPreviousPage, setInspectPreviousPage] = useState('data');
+  const [messages, setMessages] = useState([]);
+  const [investigationState, setInvestigationState] = useState('idle'); // 'idle' | 'searching' | 'retrieving' | 'analyzing' | 'success' | 'error'
+  const [currentQuery, setCurrentQuery] = useState('');
+  const [selectedFloat, setSelectedFloat] = useState(null);
+  const [activeConversationId, setActiveConversationId] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    try {
+      const saved = localStorage.getItem('floatchat_sidebar_expanded');
+      return saved !== null ? JSON.parse(saved) : false; // DEFAULT IS COLLAPSED (false)
+    } catch {
+      return false;
+    }
+  });
+  const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const [isAlertSettingsOpen, setIsAlertSettingsOpen] = useState(false);
+
+  // Dynamic Mission Logs synced with localStorage
+  const [missionLogs, setMissionLogs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('floatchat_mission_logs');
+      return saved ? JSON.parse(saved) : INITIAL_MISSION_LOGS;
+    } catch {
+      return INITIAL_MISSION_LOGS;
+    }
+  });
+
+  // Backend Live Status State
+  const [backendStatus, setBackendStatus] = useState({ isLive: false, mode: 'mock' });
+
+  // Sync Sidebar Expanded State to localStorage
   useEffect(() => {
-    fetch(`${API_BASE}/health`)
-      .then((res) => res.json())
-      .then((data) => setBackendHealthy(data.status === 'ok' || data.status === 'healthy'))
-      .catch(() => setBackendHealthy(false))
-  }, [])
+    localStorage.setItem('floatchat_sidebar_expanded', JSON.stringify(isSidebarOpen));
+  }, [isSidebarOpen]);
 
-  // Auto-scroll to bottom of chat
+  // Sync Mission Logs to localStorage
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, loading])
+    localStorage.setItem('floatchat_mission_logs', JSON.stringify(missionLogs));
+  }, [missionLogs]);
 
-  const handleSend = async (queryText) => {
-    const query = (queryText || inputQuery).trim()
-    if (!query || loading) return
+  // Periodic Backend Health Polling
+  useEffect(() => {
+    checkSystemHealth().then(setBackendStatus);
+    const interval = setInterval(() => {
+      checkSystemHealth().then(setBackendStatus);
+    }, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
-    const userMsg = {
-      id: Date.now().toString(),
-      sender: 'user',
-      text: query,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  // Sync browser path
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      if (path === '/signup') setAuthView('signup');
+      else if (path === '/forgot-password') setAuthView('forgot-password');
+      else if (path === '/login') setAuthView('login');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Post-Authentication Location Check: Show prompt if status is unknown
+  useEffect(() => {
+    if (isAuthenticated && !authLoading) {
+      if (!locationPreference || locationPreference.status === 'unknown') {
+        const timer = setTimeout(() => {
+          setIsLocationModalOpen(true);
+        }, 400);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isAuthenticated, authLoading, locationPreference]);
+
+  const navigateAuth = (view) => {
+    setAuthView(view);
+    const path = view === 'login' ? '/login' : view === 'signup' ? '/signup' : '/forgot-password';
+    window.history.pushState({}, '', path);
+  };
+
+  const handleLoginSuccess = () => {
+    window.history.pushState({}, '', '/');
+    if (!locationPreference || locationPreference.status === 'unknown') {
+      setIsLocationModalOpen(true);
+    }
+  };
+
+  const isLoading = investigationState !== 'idle' && investigationState !== 'success' && investigationState !== 'error';
+
+  // Send query to Climate Intelligence API
+  const handleSendMessage = async (queryText) => {
+    if (!queryText || isLoading) return;
+
+    if (activePage !== 'chat') {
+      setActivePage('chat');
     }
 
-    setMessages((prev) => [...prev, userMsg])
-    setInputQuery('')
-    setLoading(true)
+    const convId = `conv-${Date.now()}`;
+    const userMessage = {
+      id: `user-${Date.now()}`,
+      sender: 'user',
+      text: queryText,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setCurrentQuery(queryText);
+    setInvestigationState('searching');
+    setActiveConversationId(convId);
+
+    // Append to dynamic mission logs
+    const newLogItem = {
+      id: convId,
+      title: queryText.length > 55 ? queryText.slice(0, 52) + "..." : queryText,
+      basin: inferBasinFromQuery(queryText),
+      time: "Just now",
+      query: queryText
+    };
+    setMissionLogs((prev) => [newLogItem, ...prev.filter(l => l.query !== queryText)]);
 
     try {
-      const response = await fetch(`${API_BASE}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: query,
-          session_id: sessionId,
-          use_llm: true
-        })
-      })
+      // Progressive Loading Sequencer
+      setTimeout(() => {
+        setInvestigationState('retrieving');
+      }, 350);
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.detail || `Server error (${response.status})`)
+      setTimeout(() => {
+        setInvestigationState('analyzing');
+      }, 700);
+
+      const result = await queryClimateIntelligence({
+        query: queryText,
+        conversationId: convId,
+        context: { user: user?.email }
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to retrieve climate intelligence.');
       }
 
-      const data = await response.json()
-      const aiMsg = {
-        id: (Date.now() + 1).toString(),
+      const aiData = result.data;
+      const aiMessage = {
+        id: `ai-${Date.now()}`,
         sender: 'ai',
-        data: data,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }
+        query: queryText,
+        text: aiData.text,
+        queryIntent: aiData.queryIntent,
+        riskLevel: aiData.riskLevel,
+        riskTitle: aiData.riskTitle,
+        riskSummary: aiData.riskSummary,
+        confidence: aiData.confidence,
+        comparison: aiData.comparison,
+        hazards: aiData.hazards || [],
+        actions: aiData.actions || [],
+        kpis: aiData.kpis || [],
+        floats: aiData.floats || [],
+        relevantFloatId: aiData.relevantFloatId,
+        chartData: aiData.chartData || [],
+        chartType: aiData.chartType || 'temperature',
+        mapFocus: aiData.mapFocus,
+        followUps: aiData.followUps || [],
+        source: aiData.source,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isMock: result.isMock
+      };
 
-      setMessages((prev) => [...prev, aiMsg])
+      setMessages((prev) => [...prev, aiMessage]);
+      setInvestigationState('success');
     } catch (err) {
-      const errorMsg = {
-        id: (Date.now() + 1).toString(),
+      console.error('[FloatChat] Query execution error:', err);
+      setInvestigationState('error');
+
+      const errorMessage = {
+        id: `ai-err-${Date.now()}`,
         sender: 'ai',
         isError: true,
-        text: `Error processing query: ${err.message}. Please verify the FastAPI backend is running.`,
+        text: "Unable to retrieve the latest environmental intelligence. Please check your backend connection or retry the inquiry.",
+        failedQuery: queryText,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }
-      setMessages((prev) => [...prev, errorMsg])
+      };
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
-      setLoading(false)
+      setTimeout(() => {
+        setInvestigationState('idle');
+        setCurrentQuery('');
+      }, 250);
     }
+  };
+
+  const handleRetryQuery = (failedQuery) => {
+    if (failedQuery) {
+      handleSendMessage(failedQuery);
+    }
+  };
+
+  const handleNewChat = () => {
+    setMessages([]);
+    setActiveConversationId(null);
+    setSelectedFloat(null);
+    setInvestigationState('idle');
+    setActivePage('chat');
+  };
+
+  const handleSelectConversation = (conv) => {
+    setActiveConversationId(conv.id);
+    setActivePage('chat');
+    handleSendMessage(conv.query || conv.title);
+  };
+
+  const handleDeleteMissionLog = (id) => {
+    setMissionLogs((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleClearAllMissionLogs = () => {
+    setMissionLogs([]);
+  };
+
+  const handleAskAboutFloat = (float) => {
+    setActivePage('chat');
+    handleSendMessage(`Provide an in-depth climate risk and environmental indicator assessment for Float ${float.id} (${float.name}) in ${float.region}.`);
+  };
+
+  const handleSelectWatchlistRegion = (regionName) => {
+    setActivePage('chat');
+    handleSendMessage(`Analyze current climate risk, thermal energy, and environmental anomalies for ${regionName}.`);
+  };
+
+  const handleInspectSignal = (signalData, fromPage = 'data') => {
+    setInspectedSignal(signalData);
+    setInspectPreviousPage(fromPage);
+    setActivePage('inspect');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleBackFromInspect = () => {
+    setActivePage(inspectPreviousPage || 'data');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // 1. Initial Session Verification Loading Splash
+  if (authLoading) {
+    return (
+      <div className="auth-loading-splash font-mono">
+        <OceanBackground />
+        <div className="loading-splash-content">
+          <div className="splash-radar-logo">
+            <img src="/ocean-logo.svg" alt="FloatChat Logo" className="splash-logo" />
+            <span className="splash-sonar-ring" />
+          </div>
+          <div className="splash-status-row">
+            <Activity size={16} className="text-cyan animate-pulse" />
+            <span>INITIALIZING CLIMATE MISSION SESSION...</span>
+          </div>
+        </div>
+
+        <style>{`
+          .auth-loading-splash {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-abyss);
+            color: var(--text-primary);
+            position: relative;
+            overflow: hidden;
+          }
+
+          .loading-splash-content {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+          }
+
+          .splash-radar-logo {
+            position: relative;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+
+          .splash-logo {
+            width: 40px;
+            height: 40px;
+            filter: drop-shadow(0 0 10px rgba(0, 229, 255, 0.6));
+            position: relative;
+            z-index: 2;
+          }
+
+          .splash-sonar-ring {
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            border: 1.5px solid var(--cyan-primary);
+            animation: sonarPulse 2s infinite;
+          }
+
+          .splash-status-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11.5px;
+            letter-spacing: 0.08em;
+            color: var(--text-secondary);
+            background: var(--glass-panel);
+            border: 1px solid var(--border-light);
+            padding: 8px 16px;
+            border-radius: var(--radius-full);
+            backdrop-filter: blur(14px);
+          }
+        `}</style>
+      </div>
+    );
   }
 
-  const handleResetSession = () => {
-    const newId = 'sess-' + Math.random().toString(36).substring(2, 9)
-    setSessionId(newId)
-    setMessages([])
+  // 2. Unauthenticated Routes (Login, Signup, Forgot Password)
+  if (!isAuthenticated) {
+    if (authView === 'signup') {
+      return (
+        <Signup
+          onNavigateToLogin={() => navigateAuth('login')}
+          onSignupSuccess={handleLoginSuccess}
+        />
+      );
+    }
+
+    if (authView === 'forgot-password') {
+      return (
+        <ForgotPassword
+          onNavigateToLogin={() => navigateAuth('login')}
+        />
+      );
+    }
+
+    return (
+      <Login
+        onNavigateToSignup={() => navigateAuth('signup')}
+        onNavigateToForgotPassword={() => navigateAuth('forgot-password')}
+        onLoginSuccess={handleLoginSuccess}
+      />
+    );
   }
 
+  // 3. Authenticated FloatChat Dashboard
   return (
-    <div className="floatchat-app">
-      {/* Header */}
-      <header className="floatchat-header">
-        <div className="brand-group">
-          <div className="logo-icon">🌊</div>
-          <div>
-            <h1 className="brand-title">FloatChat</h1>
-            <p className="brand-tagline">Ask the Ocean. Understand the Risk.</p>
-          </div>
-        </div>
+    <div className="floatchat-observatory-app">
+      {/* LAYER 1: Ambient Earth System Background */}
+      <OceanBackground />
 
-        <div className="status-group">
-          <div className={`health-pill ${backendHealthy ? 'online' : backendHealthy === false ? 'offline' : 'checking'}`}>
-            <span className="dot"></span>
-            {backendHealthy ? 'API Online' : backendHealthy === false ? 'API Offline' : 'Connecting...'}
-          </div>
-          <button className="session-btn" onClick={handleResetSession} title="Clear conversation memory">
-            🔄 New Session <span className="session-id">({sessionId})</span>
-          </button>
-        </div>
-      </header>
+      {/* LAYER 3: Clean Top Navigation Bar with User Profile Menu */}
+      <Navbar
+        activePage={activePage}
+        setActivePage={setActivePage}
+        onNewChat={handleNewChat}
+        onOpenWatchlist={() => setIsWatchlistOpen(true)}
+        onOpenAlertSettings={() => setIsAlertSettingsOpen(true)}
+      />
 
-      {/* Main Container */}
-      <main className="floatchat-main">
-        {messages.length === 0 ? (
-          <div className="welcome-hero">
-            <div className="hero-badge">ARGO GLOBAL DATA ASSEMBLY CENTER • SCIENTIFIC AI</div>
-            <h2>Conversational Ocean Intelligence</h2>
-            <p className="hero-desc">
-              Query real-time and archival ARGO profiling floats, compute thermoclines and mixed layer depths,
-              and analyze marine climate anomalies across the global ocean.
-            </p>
+      {/* Main Layout Grid */}
+      <div className="app-workspace-layout">
+        {/* Minimal Secondary Instrument Rail Sidebar */}
+        <Sidebar
+          activePage={activePage}
+          setActivePage={setActivePage}
+          conversations={missionLogs}
+          onSelectConversation={handleSelectConversation}
+          onDeleteConversation={handleDeleteMissionLog}
+          onClearAllConversations={handleClearAllMissionLogs}
+          activeConversationId={activeConversationId}
+          onNewChat={handleNewChat}
+          onOpenWatchlist={() => setIsWatchlistOpen(true)}
+          onOpenAlertSettings={() => setIsAlertSettingsOpen(true)}
+          isOpen={isSidebarOpen}
+          setIsOpen={setIsSidebarOpen}
+        />
 
-            <div className="suggestions-container">
-              <p className="suggestions-label">Try asking:</p>
-              <div className="suggestions-grid">
-                {SUGGESTED_QUERIES.map((q, idx) => (
-                  <button key={idx} className="suggestion-chip" onClick={() => handleSend(q)}>
-                    {q}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="chat-thread">
-            {messages.map((msg) => (
-              <div key={msg.id} className={`message-row ${msg.sender}`}>
-                <div className="message-avatar">
-                  {msg.sender === 'user' ? '👤' : '🌊'}
-                </div>
+        {/* Primary Viewport */}
+        <main className="observatory-main-viewport">
+          {activePage === 'chat' && (
+            <Home
+              messages={messages}
+              isLoading={isLoading}
+              currentQuery={currentQuery}
+              onSendMessage={handleSendMessage}
+              onRetryQuery={handleRetryQuery}
+              selectedFloat={selectedFloat}
+              setSelectedFloat={setSelectedFloat}
+              onNavigate={(page) => setActivePage(page)}
+              onInspectSignal={handleInspectSignal}
+            />
+          )}
 
-                <div className="message-bubble">
-                  {msg.sender === 'user' ? (
-                    <div className="user-text">{msg.text}</div>
-                  ) : msg.isError ? (
-                    <div className="error-text">⚠️ {msg.text}</div>
-                  ) : (
-                    <div className="ai-response-content">
-                      {/* Markdown Answer */}
-                      <div className="answer-text" style={{ whiteSpace: 'pre-wrap' }}>
-                        {msg.data.answer}
-                      </div>
+          {activePage === 'explore' && (
+            <Explore
+              onAskAboutFloat={handleAskAboutFloat}
+              onInspectSignal={handleInspectSignal}
+            />
+          )}
 
-                      {/* Key Findings */}
-                      {msg.data.key_findings && msg.data.key_findings.length > 0 && (
-                        <div className="findings-box">
-                          <div className="findings-title">Key Findings</div>
-                          <ul>
-                            {msg.data.key_findings.map((finding, idx) => (
-                              <li key={idx}>{finding}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
+          {activePage === 'data' && (
+            <OceanData 
+              onNavigateToChat={(q) => {
+                setActivePage('chat');
+                if (q) handleSendMessage(q);
+              }}
+              onInspectSignal={handleInspectSignal}
+            />
+          )}
 
-                      {/* ARGO Float Citations */}
-                      {msg.data.citations && msg.data.citations.length > 0 && (
-                        <div className="citations-box">
-                          <div className="citations-title">Verified ARGO Citations ({msg.data.citations.length})</div>
-                          <div className="citations-list">
-                            {msg.data.citations.map((c, idx) => (
-                              <div key={idx} className="citation-pill">
-                                <span className="float-id">WMO #{c.platform_id}</span>
-                                {c.cycle_number && <span className="cycle">Cycle {c.cycle_number}</span>}
-                                {c.distance_km != null && <span className="dist">{c.distance_km.toFixed(1)} km</span>}
-                                <span className="coords">({c.latitude.toFixed(2)}°, {c.longitude.toFixed(2)}°)</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+          {activePage === 'about' && (
+            <About
+              onNavigateToChat={(q) => {
+                setActivePage('chat');
+                if (q) handleSendMessage(q);
+              }}
+              onOpenAlertSettings={() => setIsAlertSettingsOpen(true)}
+              onInspectSignal={handleInspectSignal}
+            />
+          )}
 
-                      {/* Depth Profile Chart Table Preview */}
-                      {msg.data.chart_data && msg.data.chart_data.data_points && msg.data.chart_data.data_points.length > 0 && (
-                        <div className="chart-preview-box">
-                          <div className="chart-title">📊 {msg.data.chart_data.title}</div>
-                          <div className="data-table-wrapper">
-                            <table className="data-table">
-                              <thead>
-                                <tr>
-                                  <th>Depth (m)</th>
-                                  <th>{msg.data.chart_data.parameter} ({msg.data.chart_data.unit})</th>
-                                  <th>Float WMO</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {msg.data.chart_data.data_points.slice(0, 8).map((pt, idx) => (
-                                  <tr key={idx}>
-                                    <td>{pt.depth_m.toFixed(1)}m</td>
-                                    <td className="val-cell">{pt.value.toFixed(2)}</td>
-                                    <td>#{pt.platform_id}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                            {msg.data.chart_data.data_points.length > 8 && (
-                              <div className="table-more">
-                                + {msg.data.chart_data.data_points.length - 8} deeper observation levels
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
+          {activePage === 'inspect' && (
+            <SignalInspect
+              signal={inspectedSignal}
+              onBack={handleBackFromInspect}
+              onNavigateToChat={(q) => {
+                setActivePage('chat');
+                if (q) handleSendMessage(q);
+              }}
+            />
+          )}
+        </main>
+      </div>
 
-                      {/* Follow-up Suggestions */}
-                      {msg.data.follow_up_suggestions && msg.data.follow_up_suggestions.length > 0 && (
-                        <div className="followup-box">
-                          <span className="followup-label">Follow-up:</span>
-                          {msg.data.follow_up_suggestions.map((sug, idx) => (
-                            <button key={idx} className="followup-chip" onClick={() => handleSend(sug)}>
-                              {sug}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
+      {/* User Watchlist Modal */}
+      <WatchlistModal
+        isOpen={isWatchlistOpen}
+        onClose={() => setIsWatchlistOpen(false)}
+        onSelectRegionInvestigation={handleSelectWatchlistRegion}
+      />
 
-                  <div className="message-time">{msg.timestamp}</div>
-                </div>
-              </div>
-            ))}
+      {/* Post-Login Location Permission Modal */}
+      <LocationPermissionModal
+        isOpen={isLocationModalOpen}
+        onClose={() => setIsLocationModalOpen(false)}
+        onComplete={() => setIsLocationModalOpen(false)}
+      />
 
-            {loading && (
-              <div className="message-row ai">
-                <div className="message-avatar">🌊</div>
-                <div className="message-bubble loading-bubble">
-                  <div className="loading-spinner"></div>
-                  <span>Retrieving ARGO float profiles & synthesizing scientific response...</span>
-                </div>
-              </div>
-            )}
+      {/* Alert & Proximity Radius Settings Modal */}
+      <AlertSettingsModal
+        isOpen={isAlertSettingsOpen}
+        onClose={() => setIsAlertSettingsOpen(false)}
+      />
 
-            <div ref={messagesEndRef} />
-          </div>
-        )}
-      </main>
+      {/* Persistent System Telemetry Pill at Bottom Left */}
+      <div className="global-system-telemetry-pill font-mono">
+        <Radio size={11} className={backendStatus.isLive ? "text-emerald animate-pulse" : "text-cyan animate-pulse"} />
+        <span>
+          {backendStatus.isLive 
+            ? "FASTAPI CLIMATE AI LIVE • 3,842 IN-SITU SENSORS ASSIMILATED" 
+            : "IN-SITU SENSOR SIMULATION ENGINE • 3,842 ARGO FLOATS ACTIVE"}
+        </span>
+      </div>
 
-      {/* Footer Query Input */}
-      <footer className="floatchat-footer">
-        <form
-          className="input-form"
-          onSubmit={(e) => {
-            e.preventDefault()
-            handleSend()
-          }}
-        >
-          <input
-            type="text"
-            className="chat-input"
-            placeholder="Ask FloatChat about ocean temperature, salinity, mixed layer depth, ARGO floats..."
-            value={inputQuery}
-            onChange={(e) => setInputQuery(e.target.value)}
-            disabled={loading}
-          />
-          <button type="submit" className="send-btn" disabled={loading || !inputQuery.trim()}>
-            {loading ? '...' : 'Send ➔'}
-          </button>
-        </form>
-      </footer>
+      <style>{`
+        .floatchat-observatory-app {
+          display: flex;
+          flex-direction: column;
+          min-height: 100vh;
+          background: transparent;
+          color: var(--text-primary);
+          position: relative;
+        }
+
+        .app-workspace-layout {
+          display: flex;
+          flex: 1;
+          height: calc(100vh - 68px);
+          overflow: hidden;
+          position: relative;
+          z-index: 10;
+        }
+
+        .observatory-main-viewport {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          overflow-y: auto;
+          min-width: 0;
+          position: relative;
+          z-index: 5;
+        }
+
+        .global-system-telemetry-pill {
+          position: fixed;
+          bottom: 12px;
+          right: 16px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: var(--glass-panel-elevated);
+          border: 1px solid var(--border-light);
+          padding: 4px 10px;
+          border-radius: var(--radius-full);
+          font-size: 9.5px;
+          letter-spacing: 0.05em;
+          color: var(--text-muted);
+          z-index: 100;
+          backdrop-filter: blur(12px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        @media (max-width: 768px) {
+          .global-system-telemetry-pill {
+            display: none;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .app-workspace-layout {
+            height: calc(100vh - 60px);
+          }
+        }
+      `}</style>
     </div>
-  )
+  );
 }
