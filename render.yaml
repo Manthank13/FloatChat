@@ -28,9 +28,11 @@ services:
       - key: CORS_ORIGINS
         value: "https://float-chat-mauve.vercel.app,http://localhost:5173"
       - key: DATA_PROVIDER
-        value: argo
+        value: erddap
       - key: ARGO_DATA_PROVIDER
-        value: sample
+        value: erddap
+      - key: ARGO_BASE_URL
+        value: "https://erddap.ifremer.fr/erddap/tabledap/ArgoFloats.json"
       - key: MONGODB_DATABASE
         value: floatchat
       - key: MONGODB_URI

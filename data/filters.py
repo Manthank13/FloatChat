@@ -1,12 +1,12 @@
-"""
-Filter functions and statistical calculation utilities for ARGO oceanographic observations.
-"""
+from __future__ import annotations
 
 import math
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple
 
-from ai.models import DepthFilter, LocationFilter, TimeRangeFilter
+if TYPE_CHECKING:
+    from ai.models import DepthFilter, LocationFilter, TimeRangeFilter
+
 from data.models import ArgoObservation, DataSummary
 from data.spatial import haversine_distance, is_point_in_bounding_box, is_point_within_radius
 

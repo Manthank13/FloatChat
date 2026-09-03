@@ -1,9 +1,4 @@
-﻿"""
-Remote REST API ARGO Data Provider for FloatChat (Argovis / ERDDAP).
-
-Fetches live ARGO profiles and depth observations from public oceanographic REST endpoints.
-Safely retrieves API keys from environment variables without exposing credentials in code.
-"""
+from __future__ import annotations
 
 import json
 import logging
@@ -11,9 +6,11 @@ import os
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from ai.models import StructuredQuery
+if TYPE_CHECKING:
+    from ai.models import StructuredQuery
+
 from data.config import DataConfig
 from data.models import ArgoObservation
 from data.normalization import normalize_observation_dict

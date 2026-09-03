@@ -1,4 +1,4 @@
-﻿"""
+"""
 Configuration settings for FloatChat ARGO oceanographic data retrieval providers.
 """
 
@@ -11,15 +11,15 @@ class DataConfig(BaseModel):
     """Configuration parameters for ARGO data providers and ingestion engines."""
 
     provider_type: str = Field(
-        default="sample",
-        description="ARGO data source provider: 'sample' | 'mock' | 'netcdf' | 'parquet' | 'remote'",
+        default="erddap",
+        description="ARGO data source provider: 'erddap' | 'sample' | 'mock' | 'netcdf' | 'parquet' | 'remote'",
     )
     data_path: Optional[str] = Field(
         default=None,
         description="File path or directory containing NetCDF (*.nc) or Parquet (*.parquet) datasets",
     )
     remote_api_url: str = Field(
-        default="https://argovis-api.colorado.edu/data/argo",
+        default="https://erddap.ifremer.fr/erddap/tabledap/ArgoFloats.json",
         description="Base REST endpoint for remote ARGO API queries",
     )
     remote_api_key_env_var: str = Field(
@@ -55,8 +55,8 @@ class DataConfig(BaseModel):
     def from_env(cls) -> "DataConfig":
         """Construct DataConfig from active environment variables."""
         return cls(
-            provider_type=os.environ.get("ARGO_DATA_PROVIDER", "sample"),
+            provider_type=os.environ.get("ARGO_DATA_PROVIDER", "erddap"),
             data_path=os.environ.get("ARGO_DATA_PATH"),
-            remote_api_url=os.environ.get("ARGOVIS_API_URL", "https://argovis-api.colorado.edu/data/argo"),
+            remote_api_url=os.environ.get("ARGOVIS_API_URL", "https://erddap.ifremer.fr/erddap/tabledap/ArgoFloats.json"),
             remote_api_key_env_var=os.environ.get("ARGOVIS_API_KEY_VAR", "ARGOVIS_API_KEY"),
         )

@@ -1,4 +1,4 @@
-﻿"""
+"""
 FloatChat ARGO Data Providers Package.
 
 Exposes interchangeable data providers (Sample, NetCDF, Parquet, Remote REST)
@@ -10,6 +10,7 @@ from typing import Optional
 
 from data.config import DataConfig
 from data.providers.base import BaseArgoProvider
+from data.providers.erddap import ErddapArgoProvider
 from data.providers.netcdf import NetCDFArgoProvider
 from data.providers.parquet import ParquetArgoProvider
 from data.providers.remote import ArgovisRESTProvider
@@ -25,21 +26,24 @@ def create_argo_provider(config: Optional[DataConfig] = None) -> BaseArgoProvide
     cfg = config or DataConfig.from_env()
     ptype = cfg.provider_type.lower()
 
-    if ptype in ["sample", "mock", "test"]:
+    if ptype in ["erddap", "argo", "gdac", "ifremer"]:
+        return ErddapArgoProvider(config=cfg)
+    elif ptype in ["sample", "mock", "test"]:
         return SampleArgoProvider()
     elif ptype in ["netcdf", "nc"]:
         return NetCDFArgoProvider(file_path_or_dir=cfg.data_path)
     elif ptype in ["parquet", "pq"]:
         return ParquetArgoProvider(parquet_path=cfg.data_path)
-    elif ptype in ["remote", "argovis", "erddap"]:
+    elif ptype in ["remote", "argovis"]:
         return ArgovisRESTProvider(config=cfg)
     else:
-        logger.warning("Unrecognized ARGO data provider '%s', defaulting to SampleArgoProvider", ptype)
-        return SampleArgoProvider()
+        logger.info("Defaulting to ErddapArgoProvider for provider '%s'", ptype)
+        return ErddapArgoProvider(config=cfg)
 
 
 __all__ = [
     "BaseArgoProvider",
+    "ErddapArgoProvider",
     "SampleArgoProvider",
     "NetCDFArgoProvider",
     "ParquetArgoProvider",

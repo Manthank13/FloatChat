@@ -132,12 +132,9 @@ export function normalizeBackendQueryResponse(raw, originalQuery) {
     });
   }
 
-  // Fallback if no floats in query response
-  if (floats.length === 0) {
-    floats.push(...ARGO_FLOATS.slice(0, 3));
-  }
-
-  const primaryFloat = floats[0];
+  const primaryFloat = floats.length > 0 ? floats[0] : null;
+  const defaultLat = locationInfo.latitude || 20.0;
+  const defaultLng = locationInfo.longitude || 0.0;
 
   // 3. Build scientific KPI cards from real backend observations and summary
   let kpis = raw.kpis;
@@ -159,28 +156,28 @@ export function normalizeBackendQueryResponse(raw, originalQuery) {
       kpis = [
         { 
           label: "SEA TEMPERATURE", 
-          value: summary.surface_temperature !== undefined ? `${summary.surface_temperature} °C` : "26.5 °C", 
-          anomaly: summary.surface_temperature > 28 ? "+0.8°C Anomaly" : "Calibrated In-situ", 
+          value: summary.surface_temperature !== undefined ? `${summary.surface_temperature} °C` : "Unavailable", 
+          anomaly: summary.surface_temperature > 28 ? "+0.8°C Anomaly" : "In-situ Observation", 
           riskRelevance: "Upper Ocean Thermal Content", 
-          riskLevel: "nominal",
+          riskLevel: "nominal", 
           type: "temp", 
           icon: "Thermometer" 
         },
         { 
           label: "PRACTICAL SALINITY", 
-          value: summary.surface_salinity !== undefined ? `${summary.surface_salinity} PSU` : "35.8 PSU", 
+          value: summary.surface_salinity !== undefined ? `${summary.surface_salinity} PSU` : "Unavailable", 
           anomaly: "Nominal Halocline", 
           riskRelevance: "Salinity Stratification", 
-          riskLevel: "nominal",
+          riskLevel: "nominal", 
           type: "salinity", 
           icon: "Droplets" 
         },
         { 
           label: "MIXED LAYER DEPTH (MLD)", 
-          value: summary.mixed_layer_depth !== undefined ? `${summary.mixed_layer_depth} m` : "38 m", 
+          value: summary.mixed_layer_depth !== undefined ? `${summary.mixed_layer_depth} m` : "Unavailable", 
           anomaly: "Density Threshold: 0.03 kg/m³", 
           riskRelevance: "Mixed Layer Dynamics", 
-          riskLevel: "nominal",
+          riskLevel: "nominal", 
           type: "depth", 
           icon: "Layers" 
         },
@@ -188,8 +185,8 @@ export function normalizeBackendQueryResponse(raw, originalQuery) {
           label: "DATA PROVENANCE", 
           value: `${citations.length || floats.length} Float(s) Cited`, 
           anomaly: "IOC/WMO QC Flag = 1", 
-          riskRelevance: `WMO #${primaryFloat.wmoNumber}`, 
-          riskLevel: "nominal",
+          riskRelevance: primaryFloat ? `WMO #${primaryFloat.wmoNumber}` : "Global ARGO Array", 
+          riskLevel: "nominal", 
           type: "float", 
           icon: "Activity" 
         }
@@ -213,10 +210,10 @@ export function normalizeBackendQueryResponse(raw, originalQuery) {
     actions: raw.actions || [],
     kpis,
     floats,
-    relevantFloatId: primaryFloat.id,
+    relevantFloatId: primaryFloat ? primaryFloat.id : null,
     chartData,
     chartType: chartDataRaw.parameter === 'PSAL' ? 'salinity' : 'temp',
-    mapFocus: { lat: primaryFloat.lat, lng: primaryFloat.lng, zoom: 6 },
+    mapFocus: primaryFloat ? { lat: primaryFloat.lat, lng: primaryFloat.lng, zoom: 6 } : { lat: defaultLat, lng: defaultLng, zoom: 4 },
     followUps: followUpSuggestions,
     source: raw.source || { provider: "FastAPI + ARGO GDAC Engine", quality: "RTQC PASS" },
     citations: raw.citations || [],

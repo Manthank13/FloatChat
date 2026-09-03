@@ -1,15 +1,12 @@
-"""
-ARGO Oceanographic Data Retrieval Engine for FloatChat.
-
-Executes structured queries against ARGO data sources with spatial geodesic matching,
-nearest depth filtering, temporal windowing, quality control, and pre-computed statistical summarization.
-"""
+from __future__ import annotations
 
 import logging
 import math
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
-from ai.models import OceanParameter, StructuredQuery
+if TYPE_CHECKING:
+    from ai.models import OceanParameter, StructuredQuery
+
 from data.config import DataConfig
 from data.filters import (
     compute_statistics,
@@ -58,6 +55,7 @@ class ArgoDataRetriever(BaseDataRetriever):
             RetrievalResult with matched observation records, summary statistics, and metadata.
         """
         # Convert dict to StructuredQuery if necessary
+        from ai.models import StructuredQuery
         sq = query if isinstance(query, StructuredQuery) else StructuredQuery(**query)
 
         param_names = [p.value if hasattr(p, "value") else str(p) for p in sq.parameters]

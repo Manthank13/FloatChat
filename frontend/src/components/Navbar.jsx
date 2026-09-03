@@ -145,12 +145,12 @@ export default function Navbar({
           {/* Telemetry Status Indicator (Desktop only) */}
           <div 
             className="telemetry-status desktop-status-widget font-mono" 
-            title={backendStatus.isLive ? 'FastAPI Backend Online' : '3,842 In-situ Sensors Active (Simulation Engine)'}
+            title={backendStatus.isLive ? 'FastAPI Backend Online' : 'Global In-situ ARGO Array (~3,840 Active Floats)'}
           >
             <span className={`status-dot ${backendStatus.isLive ? 'live' : 'simulated'}`}></span>
             <div className="status-info">
-              <span className="status-label">ARRAY STATUS</span>
-              <span className="status-value">{backendStatus.isLive ? 'FastAPI Live' : '3,842 Sensors'}</span>
+              <span className="status-label">GLOBAL ARRAY</span>
+              <span className="status-value">{backendStatus.isLive ? 'FastAPI Live' : '3,840+ Floats'}</span>
             </div>
           </div>
 

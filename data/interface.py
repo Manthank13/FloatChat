@@ -1,11 +1,11 @@
-﻿"""
-Abstract Data Source and Data Retriever interfaces for FloatChat.
-"""
+from __future__ import annotations
 
 import abc
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
-from ai.models import StructuredQuery
+if TYPE_CHECKING:
+    from ai.models import StructuredQuery
+
 from data.models import ArgoObservation, ArgoProfile, RetrievalResult
 
 

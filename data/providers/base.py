@@ -1,11 +1,11 @@
-﻿"""
-Base abstract data provider interface for FloatChat ARGO oceanographic data retrieval.
-"""
+from __future__ import annotations
 
 import abc
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
-from ai.models import StructuredQuery
+if TYPE_CHECKING:
+    from ai.models import StructuredQuery
+
 from data.interface import BaseArgoDataSource
 from data.models import ArgoObservation, ArgoProfile
 

@@ -405,6 +405,16 @@ export default function AIAnalysis({
               </div>
             </div>
           )}
+
+          {activeTab === 'map' && (!message.floats || message.floats.length === 0) && (
+            <div className="instrument-column">
+              <div className="instrument-map-wrap flex flex-col items-center justify-center p-8 text-center text-slate-400 font-mono text-xs">
+                <MapPin size={24} className="text-slate-600 mb-2" />
+                <p>No active ARGO float telemetry markers recorded in this specific search boundary.</p>
+                <p className="text-slate-500 mt-1">Try expanding the search radius or exploring adjacent ocean basins.</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
