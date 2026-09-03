@@ -1,4 +1,16 @@
-﻿from fastapi import APIRouter
+import sys
+from pathlib import Path
+
+# Ensure project root is available for imports
+_file = Path(__file__).resolve()
+_root_dir = _file.parent.parent.parent.parent.parent  # FloatChat root
+_backend_dir = _file.parent.parent.parent.parent       # FloatChat/backend
+
+for _p in (str(_root_dir), str(_backend_dir)):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+from fastapi import APIRouter
 from app.api.v1.endpoints import analysis, argo, auth, chat, health, preferences, query, saved_queries
 from ai.router import router as ai_chat_router
 

@@ -1,0 +1,20 @@
+﻿from setuptools import setup, find_packages
+
+setup(
+    name="floatchat",
+    version="0.1.0",
+    packages=find_packages(include=["ai*", "data*", "backend*"]),
+    install_requires=[
+        "fastapi>=0.110.0",
+        "uvicorn[standard]>=0.28.0",
+        "pydantic>=2.6.0",
+        "pydantic-settings>=2.2.0",
+        "email-validator>=2.1.0",
+        "httpx>=0.27.0",
+        "motor>=3.3.0",
+        "pymongo>=4.6.0",
+        "argon2-cffi>=23.1.0",
+        "pyjwt>=2.8.0",
+        "openai>=1.0.0",
+    ],
+)
