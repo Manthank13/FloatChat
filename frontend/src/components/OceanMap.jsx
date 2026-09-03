@@ -47,11 +47,11 @@ export default function OceanMap({
         doubleClickZoom: interactive,
       });
 
-      // CartoDB Dark Matter basemap
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        subdomains: 'abcd',
-        maxZoom: 18,
-        minZoom: 3,
+      // Oceanographic Bathymetric Basemap (Esri World Ocean / OpenStreetMap)
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 13,
+        minZoom: 2,
+        attribution: 'Esri, GEBCO, NOAA, National Geographic, DeLorme, HERE, Geonames.org',
       }).addTo(map);
 
       // Add Zoom control at top-right

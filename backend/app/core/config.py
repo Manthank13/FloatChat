@@ -1,4 +1,4 @@
-﻿from typing import List, Optional, Union
+from typing import List, Optional, Union
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -38,6 +38,7 @@ class Settings(BaseSettings):
 
     # CORS configuration
     CORS_ORIGINS: Union[List[str], str] = [
+        "https://float-chat-mauve.vercel.app",
         "http://localhost:3000",
         "http://localhost:5173",
         "http://127.0.0.1:3000",
