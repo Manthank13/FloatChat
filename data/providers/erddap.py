@@ -69,8 +69,8 @@ class ErddapArgoProvider(BaseArgoProvider):
         if query and query.time_range and query.time_range.start_date:
             query_constraints.append(f'time>="{query.time_range.start_date}T00:00:00Z"')
         elif min_lat is not None:
-            # Default to modern telemetry window (2023+) for fast, highly relevant spatial search
-            query_constraints.append('time>="2023-01-01T00:00:00Z"')
+            # Default to modern 2024+ telemetry window for lightning-fast querying and minimal memory overhead
+            query_constraints.append('time>="2024-01-01T00:00:00Z"')
 
         if query and query.time_range and query.time_range.end_date:
             query_constraints.append(f'time<="{query.time_range.end_date}T23:59:59Z"')
