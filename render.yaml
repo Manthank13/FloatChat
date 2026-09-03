@@ -6,14 +6,20 @@ services:
     plan: free
     branch: dev
     buildCommand: "pip install -r backend/requirements.txt -e ."
-    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT --app-dir backend"
+    startCommand: "PYTHONPATH=.:backend uvicorn app.main:app --host 0.0.0.0 --port $PORT --app-dir backend"
     healthCheckPath: /api/v1/health
     envVars:
+      - key: PYTHONPATH
+        value: ".:backend"
       - key: ENVIRONMENT
         value: production
       - key: AI_LLM_PROVIDER
         value: openai
+      - key: LLM_PROVIDER
+        value: openai
       - key: AI_MODEL_NAME
+        value: gpt-4o-mini
+      - key: OPENAI_MODEL
         value: gpt-4o-mini
       - key: OPENAI_API_KEY
         sync: false
@@ -23,6 +29,8 @@ services:
         value: "https://float-chat-mauve.vercel.app,http://localhost:5173"
       - key: DATA_PROVIDER
         value: argo
+      - key: ARGO_DATA_PROVIDER
+        value: sample
       - key: MONGODB_DATABASE
         value: floatchat
       - key: MONGODB_URI
