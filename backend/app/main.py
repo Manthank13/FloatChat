@@ -1,4 +1,4 @@
-﻿from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
@@ -84,6 +84,8 @@ def create_application() -> FastAPI:
     # Include API Routers
     app.include_router(api_router, prefix=settings.API_V1_STR)
     app.include_router(frontend_router, prefix="/api", tags=["Frontend Product Contract"])
+    from app.api.v1.endpoints.auth import router as auth_direct_router
+    app.include_router(auth_direct_router, prefix="/auth", tags=["Auth Direct Adapter"])
 
     @app.get("/docs", include_in_schema=False)
     async def get_swagger_docs():

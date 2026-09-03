@@ -13,6 +13,12 @@ router = APIRouter()
     summary="Register New User Account",
     description="Registers a new user, hashes password with Argon2, creates database record, and issues a JWT access token.",
 )
+@router.post(
+    "/signup",
+    response_model=AuthTokenResponse,
+    status_code=status.HTTP_201_CREATED,
+    include_in_schema=False,
+)
 async def register(data: UserRegister) -> AuthTokenResponse:
     try:
         service = AuthService()

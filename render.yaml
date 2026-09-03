@@ -1,0 +1,29 @@
+﻿services:
+  - type: web
+    name: floatchat-api
+    env: python
+    region: oregon
+    plan: free
+    branch: dev
+    buildCommand: "pip install -r backend/requirements.txt"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT --app-dir backend"
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: AI_LLM_PROVIDER
+        value: openai
+      - key: AI_MODEL_NAME
+        value: gpt-4o-mini
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: "https://float-chat-mauve.vercel.app,http://localhost:5173"
+      - key: DATA_PROVIDER
+        value: argo
+      - key: MONGODB_DATABASE
+        value: floatchat
+      - key: MONGODB_URI
+        sync: false
