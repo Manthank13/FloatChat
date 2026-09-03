@@ -1,4 +1,4 @@
-﻿"""
+"""
 Integration test suite for FloatChat FastAPI Chat Endpoint (POST /api/v1/chat).
 Verifies end-to-end communication from HTTP request through AI Engine, ARGO Data Layer,
 and response synthesis with citations, chart data, and map markers.
@@ -72,7 +72,7 @@ def test_chat_endpoint_multi_turn_follow_up(client):
     assert "Chennai" in t2_data["answer"]
 
     # Verify session history endpoint
-    hist_resp = client.get(f"/api/v1/chat/sessions/{session_id}")
+    hist_resp = client.get(f"/api/v1/chat/memory/{session_id}")
     assert hist_resp.status_code == 200
     hist_data = hist_resp.json()
     assert hist_data["session_id"] == session_id

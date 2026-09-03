@@ -1,4 +1,4 @@
-﻿"""
+"""
 FastAPI Chat Router for FloatChat.
 
 Exposes conversational endpoints connecting user prompts to FloatChatAIEngine.
@@ -75,14 +75,14 @@ async def chat_stream_endpoint(request: ChatRequest):
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
-@router.get("/sessions/{session_id}", response_model=ChatSessionResponse, summary="Get conversation history")
+@router.get("/memory/{session_id}", response_model=ChatSessionResponse, summary="Get conversation in-memory state")
 async def get_session_history(session_id: str) -> ChatSessionResponse:
-    """Retrieve turn history and context for an active session."""
+    """Retrieve turn history and in-memory context for an active session."""
     session = _engine.get_session(session_id)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Session '{session_id}' not found.",
+            detail=f"Session '{session_id}' not found in memory.",
         )
     return ChatSessionResponse(
         session_id=session.session_id,
@@ -93,13 +93,14 @@ async def get_session_history(session_id: str) -> ChatSessionResponse:
     )
 
 
-@router.delete("/sessions/{session_id}", summary="Clear conversation session")
+@router.delete("/memory/{session_id}", summary="Clear in-memory conversation session")
 async def delete_session(session_id: str) -> Dict[str, Any]:
-    """Delete a conversation session."""
+    """Delete an in-memory conversation session."""
     cleared = _engine.clear_session(session_id)
     if not cleared:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Session '{session_id}' not found.",
+            detail=f"Session '{session_id}' not found in memory.",
         )
     return {"status": "success", "message": f"Session '{session_id}' cleared."}
+
