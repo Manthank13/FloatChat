@@ -38,8 +38,8 @@ def filter_by_spatial(
     if not location:
         return observations
 
-    # 1. Bounding Box takes precedence if bounding_box is present and no explicit radius_km was requested
-    if location.bounding_box is not None and location.radius_km is None:
+    # 1. Bounding Box takes precedence if bounding_box is present
+    if location.bounding_box is not None:
         bbox = location.bounding_box
         min_lat = bbox.min_latitude if hasattr(bbox, "min_latitude") else bbox[0]
         min_lon = bbox.min_longitude if hasattr(bbox, "min_longitude") else bbox[1]
@@ -56,8 +56,19 @@ def filter_by_spatial(
                 max_lat=max_lat,
                 max_lon=max_lon,
             ):
-                matched_bbox.append(_copy_obs(obs))
-        return matched_bbox
+                obs_copy = _copy_obs(obs)
+                if location.latitude is not None and location.longitude is not None:
+                    _, dist = is_point_within_radius(
+                        center_lat=location.latitude,
+                        center_lon=location.longitude,
+                        point_lat=obs.latitude,
+                        point_lon=obs.longitude,
+                        radius_km=10000.0,
+                    )
+                    obs_copy.distance_km = dist
+                matched_bbox.append(obs_copy)
+        if matched_bbox:
+            return sorted(matched_bbox, key=lambda x: x.distance_km if x.distance_km is not None else 0.0)
 
     # 2. Point Coordinate + Radius Filtering
     if location.latitude is not None and location.longitude is not None:

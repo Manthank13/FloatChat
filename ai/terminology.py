@@ -371,7 +371,7 @@ KNOWN_OCEAN_LOCATIONS: Dict[str, Dict[str, Any]] = {
         "name": "Miami / Florida Coast",
         "latitude": 25.7617,
         "longitude": -80.1918,
-        "default_radius_km": 200.0,
+        "default_radius_km": 300.0,
         "region": "North Atlantic",
     },
     "florida": {
@@ -487,7 +487,7 @@ KNOWN_OCEAN_LOCATIONS: Dict[str, Dict[str, Any]] = {
         "name": "Sydney / East Australian Current",
         "latitude": -33.8688,
         "longitude": 151.2093,
-        "default_radius_km": 250.0,
+        "default_radius_km": 300.0,
         "region": "South Pacific / Tasman Sea",
     },
     "australia": {
