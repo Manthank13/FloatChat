@@ -1,4 +1,4 @@
-﻿"""
+"""
 AI Response Synthesizer Layer for FloatChat.
 
 Transforms validated oceanographic queries and retrieved ARGO float observations into
@@ -195,6 +195,77 @@ class DeterministicResponseSynthesizer(BaseResponseSynthesizer):
         map_markers = self._build_map_markers(result)
         follow_ups = self._generate_follow_ups(query, result)
 
+        # 0. Handle General Conversational / Data Source / Explanatory Queries
+        if query.intent == QueryIntent.GENERAL_QUERY or str(query.intent) == "general_query":
+            lower_q = (query.raw_query or "").lower()
+            if any(k in lower_q for k in ["data source", "where", "fetch", "who provide", "source", "provenance"]):
+                answer = (
+                    "### Live Oceanographic Data Pipeline\n\n"
+                    "FloatChat connects directly to the international **ARGO Global Data Assembly Centre (GDAC)** hosted by **IFREMER** (`https://erddap.ifremer.fr/erddap/tabledap/ArgoFloats.csv`).\n\n"
+                    "#### Real-Time Data Architecture:\n"
+                    "- **Global Observing Array:** Over 3,800+ autonomous robotic profiling floats continuously drift throughout all major ocean basins.\n"
+                    "- **Vertical Profiling:** Every 10 days, floats descend to 2,000 meters depth (and up to 6,000m for Deep ARGO), recording high-precision vertical Conductivity-Temperature-Depth (CTD) profiles during ascent.\n"
+                    "- **Satellite Telemetry:** Calibrated measurements are transmitted via Iridium satellite networks directly to national oceanographic data centers (INCOIS, NOAA, Coriolis).\n"
+                    "- **Live ERDDAP Streaming:** When you query FloatChat, our backend queries the IFREMER ERDDAP tabledap endpoint dynamically in real time, filtering for Real-Time Quality Control (RTQC Flag = 1) verified observations.\n\n"
+                    "Try asking about a specific region, such as: *\"Show ARGO floats near Miami\"* or *\"What is the ocean temperature in Tokyo?\"*"
+                )
+                key_findings = [
+                    "Live in-situ observations retrieved via IFREMER ERDDAP ARGO GDAC.",
+                    "Global array of 3,800+ active profiling floats recording CTD data to 2000m depth."
+                ]
+            elif any(k in lower_q for k in ["what is argo", "explain argo", "argo float"]):
+                answer = (
+                    "### The International ARGO Program\n\n"
+                    "The **ARGO Program** is a major international ocean observation network comprising ~4,000 autonomous robotic floats distributed across the global ocean.\n\n"
+                    "#### Float Mechanics & Lifecycle:\n"
+                    "- **Neutral Buoyancy Drift:** Floats drift at a parking depth of 1,000 meters for roughly 9 days.\n"
+                    "- **Deep Descent & Ascent:** Floats descend to 2,000 meters, then pump hydraulic fluid into an external bladder to ascend, recording continuous vertical profiles of Sea Temperature (`TEMP`), Practical Salinity (`PSAL`), and Hydrostatic Pressure (`PRES`).\n"
+                    "- **Satellite Uplink:** At the surface, GPS fix and profile data are transmitted via satellite before the float repeats its 10-day cycle.\n"
+                    "- **Climate Science Impact:** ARGO provides the primary empirical dataset for monitoring planetary ocean heat uptake, thermal expansion, and sea-level rise."
+                )
+                key_findings = ["ARGO is the global standard for in-situ ocean climate and hydrographic profiling."]
+            elif any(k in lower_q for k in ["erddap", "what is erddap"]):
+                answer = (
+                    "### ERDDAP Data Technology\n\n"
+                    "**ERDDAP** (Environmental Research Division's Data Access Program) is a high-performance scientific data server developed by NOAA and deployed by marine institutes worldwide, including IFREMER in France.\n\n"
+                    "- **RESTful Interoperability:** Allows FloatChat to execute structured spatial, temporal, and depth constraint queries over millions of historical and real-time float cycles.\n"
+                    "- **Line-by-Line Streaming:** FloatChat consumes streaming CSV streams directly from `tabledap/ArgoFloats.csv`, achieving sub-second responses with zero cloud memory overhead."
+                )
+                key_findings = ["ERDDAP provides RESTful tabular ocean data access directly from marine research centers."]
+            else:
+                answer = (
+                    "### FloatChat Living Ocean Observatory\n\n"
+                    "**FloatChat** is an AI-powered conversational oceanographic intelligence platform that allows researchers, disaster planners, and marine enthusiasts to explore real-time in-situ environmental observations.\n\n"
+                    "#### What you can do:\n"
+                    "- **Query Global Floats:** Inquire about temperatures, salinity, and stratification across any coastal sector or open-ocean basin (e.g. *\"Show ARGO floats near Miami\"*).\n"
+                    "- **Depth Slicing:** Explore water-column properties from surface mixed layers down to 2,000m abyssal zones.\n"
+                    "- **Basin Comparisons:** Contrast oceanographic dynamics between distinct water bodies (e.g. *\"Compare Arabian Sea and Bay of Bengal\"*).\n"
+                    "- **Climate Indicators:** Inspect thermohaline stratification, barrier layers, and upper-ocean heat potential."
+                )
+                key_findings = ["FloatChat converts raw robotic float telemetry into actionable oceanographic insights."]
+
+            return FloatChatResponse(
+                query=query.raw_query,
+                intent=query.intent,
+                answer=answer,
+                key_findings=key_findings,
+                structured_query=query,
+                retrieval_result=result,
+                data_summary=result.summary,
+                citations=[],
+                chart_data=None,
+                map_markers=[],
+                follow_up_suggestions=[
+                    "Show me ARGO floats near Miami",
+                    "Show me ARGO floats near Tokyo",
+                    "What is the salinity in the Bay of Bengal at 100m?",
+                    "Compare temperature between Arabian Sea and Bay of Bengal"
+                ],
+                confidence=query.confidence,
+                data_source="REAL_ARGO_GDAC",
+                is_empty=True,
+            )
+
         # 1. Handle Empty or Zero Results
         if result.is_empty:
             loc_str = f" near **{query.location.name}**" if query.location and query.location.name else ""
@@ -206,7 +277,7 @@ class DeterministicResponseSynthesizer(BaseResponseSynthesizer):
                 f"- **Location:** {query.location.name if query.location else 'Unspecified'}\n"
                 f"- **Radius:** {query.radius_km or (query.location.radius_km if query.location else 50.0)} km\n"
                 f"- **Depth:** {query.depth.target_depth if query.depth and query.depth.target_depth else 'All levels'} m\n\n"
-                f"*Tip: Try expanding the search radius or exploring active float regions in the Bay of Bengal or Arabian Sea.*"
+                f"*Tip: Try expanding the search radius or exploring active float regions in the Bay of Bengal, Arabian Sea, or North Atlantic.*"
             )
             key_findings = ["Zero ARGO observations matched the specified spatial/depth filters."]
             return FloatChatResponse(

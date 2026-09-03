@@ -43,7 +43,7 @@ export default function AIAnalysis({
 
   const handleExportReport = () => {
     const title = `# FloatChat Climate Risk Investigation Report\n\n`;
-    const meta = `**Inquiry:** ${message.query || "Climate Risk Assessment"}\n**Timestamp:** ${new Date().toISOString()}\n**Target Region:** ${relevantFloatObj?.region || "Regional Basin"}\n**Risk Level:** ${message.riskLevel?.toUpperCase() || "ELEVATED"}\n**Ground-Truth Sensor:** Float #${relevantFloatObj?.id || "ARGO-IN-2902741"} (WMO #${relevantFloatObj?.wmoNumber || "2902741"})\n\n---\n\n`;
+    const meta = `**Inquiry:** ${message.query || "Oceanographic Assessment"}\n**Timestamp:** ${new Date().toISOString()}\n**Target Region:** ${relevantFloatObj?.region || "Regional Basin"}\n**Risk Level:** ${message.riskLevel?.toUpperCase() || "NOMINAL"}\n**Ground-Truth Sensor:** ${relevantFloatObj ? `Float #${relevantFloatObj.id} (WMO #${relevantFloatObj.wmoNumber})` : "Global ARGO Array"}\n\n---\n\n`;
     const content = `## 1. Scientific Assessment & Risk Diagnostic\n\n${message.text}\n\n## 2. In-Situ Observational Signals & Anomalies\n\n${(message.kpis || []).map(k => `- **${k.label}**: ${k.value} (${k.anomaly || 'Observed'}) — ${k.riskRelevance || ''}`).join('\n')}\n\n## 3. Coastal Disaster Resilience Recommendations\n\n${(message.actions || []).map(a => `- ${a}`).join('\n')}\n\n---\n*Validated by FloatChat Climate Intelligence Ground-Truth Telemetry Array (RTQC PASS)*\n`;
 
     const blob = new Blob([title + meta + content], { type: 'text/markdown' });
@@ -160,6 +160,84 @@ export default function AIAnalysis({
     );
   };
 
+  const isConversational = message.isGeneral || message.queryIntent === 'general_query' || message.isEmpty || (
+    (!message.floats || message.floats.length === 0) &&
+    (!message.chartData || message.chartData.length === 0) &&
+    (!message.kpis || message.kpis.length === 0) &&
+    !message.comparison
+  );
+
+  if (isConversational) {
+    return (
+      <div className="analysis-response-container">
+        {/* 1. Response Header Bar */}
+        <div className="analysis-header-row">
+          <div className="analysis-source-info font-mono">
+            <span className="source-dot"></span>
+            <span className="source-label">
+              {typeof message.source === 'string' 
+                ? message.source 
+                : (message.source?.provider 
+                    ? `${message.source.provider}${message.source.quality ? ` • ${message.source.quality}` : ''}`
+                    : "FASTAPI + ARGO GDAC ENGINE")}
+            </span>
+            <span className="source-separator">•</span>
+            <span className="source-time">{message.timestamp || 'Just now'}</span>
+          </div>
+
+          <div className="analysis-header-actions">
+            <button 
+              className="btn-header-action font-mono" 
+              onClick={handleCopyText} 
+              title="Copy response"
+            >
+              {copied ? <Check size={13} className="text-emerald" /> : <Copy size={13} />}
+              <span className="desktop-only">{copied ? 'Copied' : 'Copy'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 2. Conversational Prose Card */}
+        <div className="workspace-card glass-panel-elevated">
+          <div className="section-label-bar">
+            <div className="section-label-tag font-mono">
+              <Sparkles size={13} className="text-cyan" />
+              <span>{message.isEmpty ? "OBSERVATION SEARCH RESULTS" : "OCEAN INTELLIGENCE RESPONSE"}</span>
+            </div>
+          </div>
+
+          <div className="analysis-content-prose">
+            {renderFormattedText(message.text)}
+          </div>
+        </div>
+
+        {/* 3. Follow-up Scientific Inquiries */}
+        {message.followUps && message.followUps.length > 0 && (
+          <div className="workspace-section">
+            <div className="section-label-bar">
+              <div className="section-label-tag font-mono">
+                <Sparkles size={13} className="text-cyan" />
+                <span>RECOMMENDED CLIMATE INQUIRIES</span>
+              </div>
+            </div>
+            <div className="followup-pills-row">
+              {message.followUps.map((fu, idx) => (
+                <button
+                  key={idx}
+                  className="followup-pill font-mono"
+                  onClick={() => onSendFollowUp(fu)}
+                >
+                  <span>{fu}</span>
+                  <ChevronRight size={13} className="fu-arrow" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="analysis-response-container">
       {/* 1. Response Header Bar */}
@@ -171,7 +249,7 @@ export default function AIAnalysis({
               ? message.source 
               : (message.source?.provider 
                   ? `${message.source.provider}${message.source.quality ? ` • ${message.source.quality}` : ''}`
-                  : (message.isMock ? "CLIMATE AI SYNTHESIS (IN-SITU GROUND TRUTH)" : "FASTAPI CLIMATE AI"))}
+                  : "FASTAPI + ARGO GDAC ENGINE")}
           </span>
           <span className="source-separator">•</span>
           <span className="source-time">{message.timestamp || 'Just now'}</span>
@@ -224,11 +302,11 @@ export default function AIAnalysis({
       )}
 
       {/* 4. ADAPTIVE: Interactive Composite Climate Risk Gauge & Sector Breakdown */}
-      {message.riskLevel && !message.comparison && (
+      {message.riskLevel && !message.comparison && (message.floats?.length > 0 || message.kpis?.length > 0) && (
         <ClimateRiskScore
           overallScore={message.riskLevel === 'high' ? 84 : message.riskLevel === 'elevated' ? 78 : 56}
           overallLevel={message.riskLevel}
-          regionName={relevantFloatObj?.region || "Bay of Bengal / Chennai Coast"}
+          regionName={relevantFloatObj?.region || message.location?.name || "Regional Ocean Basin"}
           onOpenEvidence={(ev) => {
             if (onInspectSignal) {
               onInspectSignal({ ...ev, float: relevantFloatObj }, 'chat');
@@ -312,9 +390,9 @@ export default function AIAnalysis({
       )}
 
       {/* 8. ADAPTIVE: "What Changed?" Time-Series Trend Scrubber */}
-      {!message.comparison && (
+      {!message.comparison && (message.floats?.length > 0 || relevantFloatObj) && (
         <WhatChangedMode
-          regionName={relevantFloatObj?.region || "Bay of Bengal (Off Chennai)"}
+          regionName={relevantFloatObj?.region || "Regional Ocean Basin"}
           onOpenEvidence={(ev) => {
             if (onInspectSignal) {
               onInspectSignal({ ...ev, float: relevantFloatObj }, 'chat');

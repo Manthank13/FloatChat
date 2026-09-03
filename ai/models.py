@@ -1,4 +1,4 @@
-﻿"""
+"""
 Pydantic-based domain models and schemas for structured oceanographic queries.
 
 These schemas define the interface contract between the Natural Language Understanding
@@ -17,6 +17,7 @@ class QueryIntent(str, Enum):
     TEMPORAL_QUERY = "temporal_query"      # Time-series, seasonal trends, or historical spans
     COMPARISON_QUERY = "comparison_query"  # Comparing locations, depths, or time periods
     FLOAT_QUERY = "float_query"            # Float trajectory, WMO ID status, sensor health
+    GENERAL_QUERY = "general_query"        # Conversational, data source, ARGO/ERDDAP explanation, or system inquiry
     UNKNOWN = "unknown"                    # Unrecognized or out-of-domain query
 
 

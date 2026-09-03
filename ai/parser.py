@@ -1,4 +1,4 @@
-﻿"""
+"""
 LLM-assisted Natural Language Query Parser for FloatChat.
 
 Converts oceanographic natural language user questions into validated
@@ -401,7 +401,9 @@ class LLMQueryParser(BaseQueryParser):
                 errors.append(f"Invalid comparison structure: {exc}")
 
         # 9. Handle Ambiguous or Incomplete queries (e.g. "show me ocean data")
-        if intent == QueryIntent.UNKNOWN or (
+        if intent == QueryIntent.GENERAL_QUERY:
+            errors = []
+        elif intent == QueryIntent.UNKNOWN or (
             not parameters
             and not platform_id
             and not location_filter

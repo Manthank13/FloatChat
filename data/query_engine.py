@@ -118,6 +118,29 @@ class ArgoDataRetriever(BaseDataRetriever):
                 message=f"Query validation failed: {error_summary}",
             )
 
+        # 1b. Handle General Informational / Data Source Queries
+        if (hasattr(sq.intent, "value") and sq.intent.value == "general_query") or str(sq.intent) == "general_query":
+            return RetrievalResult(
+                query_raw=sq.raw_query,
+                intent="general_query",
+                parameters_requested=[],
+                total_matched_observations=0,
+                matched_observations=[],
+                matched_platforms=[],
+                summary=generate_data_summary([], []),
+                summary_statistics={},
+                spatial_info={},
+                depth_info={},
+                time_info={},
+                query_metadata={"confidence": sq.confidence, "validation_errors": []},
+                warnings=[],
+                errors=[],
+                data_source="REAL_ARGO_GDAC",
+                confidence=sq.confidence,
+                is_empty=True,
+                message="General oceanographic and data provenance query processed.",
+            )
+
         # 2. Compute coarse bounding box for push-down filtering
         min_lat, max_lat, min_lon, max_lon = None, None, None, None
         if sq.location:

@@ -25,7 +25,19 @@ const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK_DATA === 'true' || import.me
  * into a rich, structured format for the UI.
  */
 export function normalizeBackendQueryResponse(raw, originalQuery) {
-  if (!raw) return mockSubmitQuery(originalQuery);
+  if (!raw) {
+    return {
+      query: originalQuery || "Climate Inquiry",
+      text: "No response received from oceanographic engine.",
+      queryIntent: "general_query",
+      isGeneral: true,
+      isEmpty: true,
+      kpis: [],
+      floats: [],
+      chartData: [],
+      followUps: ["Show ARGO floats near Miami", "What is ARGO?", "Where is the data fetched from?"]
+    };
+  }
 
   // Extract core narrative text
   const text = raw.answer || raw.text || raw.insights?.join('\n\n') || raw.response || 'Oceanographic analysis complete.';
@@ -38,108 +50,91 @@ export function normalizeBackendQueryResponse(raw, originalQuery) {
   const chartDataRaw = raw.chart_data || {};
   const keyFindings = raw.key_findings || [];
   const followUpSuggestions = raw.follow_up_suggestions || raw.followUps || [
-    "What is the mixed layer depth in this region?",
-    "Compare temperature between 50m and 200m depth.",
-    "Show salinity profiles in the Bay of Bengal."
+    "Show ARGO floats near Miami",
+    "What is the salinity in the Bay of Bengal at 100m?",
+    "Compare temperature between Arabian Sea and Bay of Bengal"
   ];
+
+  const queryIntent = raw.intent || raw.queryIntent || (raw.structured_query?.intent) || "spatial_query";
+  const isGeneral = queryIntent === 'general_query' || (raw.data_source === 'REAL_ARGO_GDAC' && raw.is_empty && !citations.length && !mapMarkers.length && !locationInfo.name && !raw.structured_query?.location?.name);
+  const isEmpty = raw.is_empty === true || (raw.total_matched_observations === 0 && citations.length === 0 && mapMarkers.length === 0 && profileList.length === 0);
 
   // 1. Build profile data points for depth profile chart
   let chartData = [];
   if (profileList.length > 0) {
     chartData = profileList.map((p) => ({
       depth: p.depth !== undefined ? p.depth : (p.pressure || 0),
-      temp: p.temperature !== undefined ? p.temperature : (p.temp !== undefined ? p.temp : 26.0),
-      salinity: p.salinity !== undefined ? p.salinity : (p.psal !== undefined ? p.psal : 35.0),
+      temp: p.temperature !== undefined ? p.temperature : (p.temp !== undefined ? p.temp : null),
+      salinity: p.salinity !== undefined ? p.salinity : (p.psal !== undefined ? p.psal : null),
       pressure: p.pressure !== undefined ? p.pressure : (p.depth || 0),
-      density: p.density !== undefined ? p.density : 24.0,
-      oxygen: p.oxygen !== undefined ? p.oxygen : 180
+      density: p.density !== undefined ? p.density : null,
+      oxygen: p.oxygen !== undefined ? p.oxygen : null
     }));
   } else if (chartDataRaw.data_points && Array.isArray(chartDataRaw.data_points)) {
     chartData = chartDataRaw.data_points.map((pt) => ({
       depth: pt.depth !== undefined ? pt.depth : 100,
-      temp: chartDataRaw.parameter === 'TEMP' ? (pt.value || 24.0) : 24.0,
-      salinity: chartDataRaw.parameter === 'PSAL' ? (pt.value || 35.0) : 35.0,
+      temp: chartDataRaw.parameter === 'TEMP' ? (pt.value || null) : null,
+      salinity: chartDataRaw.parameter === 'PSAL' ? (pt.value || null) : null,
       pressure: pt.depth || 100,
-      platformId: pt.platform_id || "2903334",
+      platformId: pt.platform_id || "",
       cycleNumber: pt.cycle_number || 1
     }));
   }
 
   // 2. Build float citations & active platforms list
   const floats = [];
-  if (citations.length > 0) {
+  if (!isGeneral && citations.length > 0) {
     citations.forEach((c) => {
-      const wmo = String(c.platform_id || c.wmoNumber || "2903334");
+      const wmo = String(c.platform_id || c.wmoNumber || "");
+      if (!wmo) return;
       floats.push({
         id: wmo,
         wmoNumber: wmo,
         name: `ARGO Float ${wmo}`,
-        institution: c.data_source || "INCOIS / ARGO GDAC",
-        lat: Number(c.latitude) || 13.08,
-        lng: Number(c.longitude) || 80.27,
-        region: "Indian Ocean Basin",
-        regionCategory: "bay_of_bengal",
+        institution: c.data_source || "ARGO GDAC",
+        lat: Number(c.latitude) || 0,
+        lng: Number(c.longitude) || 0,
+        region: raw.location?.name || raw.structured_query?.location?.name || "Ocean Basin",
+        regionCategory: "global",
         status: "Active",
         cycleNumber: c.cycle_number || 1,
         distanceKm: c.distance_km ? Math.round(c.distance_km) : null,
         lastTransmission: c.timestamp ? new Date(c.timestamp).toLocaleDateString() : "Live Telemetry",
-        surfaceTemp: 28.2,
-        surfaceSalinity: 34.8,
-        mixedLayerDepth: 38,
-        thermoclineDepth: 120,
-        maxDepth: 2000,
-        batteryPercent: 92,
-        transmissionType: "Iridium SBD",
-        sensors: ["CTD SBE41CP", "Optode 4330"],
+        surfaceTemp: summary.surface_temperature || null,
+        surfaceSalinity: summary.surface_salinity || null,
+        mixedLayerDepth: summary.mixed_layer_depth || null,
         profile: chartData
       });
     });
-  } else if (mapMarkers.length > 0) {
+  } else if (!isGeneral && mapMarkers.length > 0) {
     mapMarkers.forEach((m) => {
-      const wmo = String(m.platform_id || "2903334");
+      const wmo = String(m.platform_id || "");
+      if (!wmo) return;
       floats.push({
         id: wmo,
         wmoNumber: wmo,
         name: `ARGO Float ${wmo}`,
-        institution: "INCOIS / ARGO GDAC",
-        lat: Number(m.latitude) || 13.08,
-        lng: Number(m.longitude) || 80.27,
-        region: "Indian Ocean Basin",
-        regionCategory: "bay_of_bengal",
+        institution: "ARGO GDAC",
+        lat: Number(m.latitude) || 0,
+        lng: Number(m.longitude) || 0,
+        region: raw.location?.name || raw.structured_query?.location?.name || "Ocean Basin",
+        regionCategory: "global",
         status: "Active",
-        cycleNumber: 42,
+        cycleNumber: 1,
         distanceKm: m.distance_km ? Math.round(m.distance_km) : null,
-        surfaceTemp: 28.0,
+        surfaceTemp: summary.surface_temperature || null,
         profile: chartData
       });
-    });
-  } else if (floatInfo.id) {
-    floats.push({
-      id: floatInfo.id,
-      wmoNumber: floatInfo.wmoNumber || floatInfo.id,
-      name: floatInfo.name || `Float ${floatInfo.id}`,
-      institution: floatInfo.institution || "INCOIS / ARGO GDAC",
-      lat: floatInfo.latitude || locationInfo.latitude || 13.08,
-      lng: floatInfo.longitude || locationInfo.longitude || 80.27,
-      region: locationInfo.name || "Bay of Bengal",
-      regionCategory: locationInfo.regionCategory || "bay_of_bengal",
-      status: floatInfo.status || "Active",
-      cycleNumber: floatInfo.cycle || 1,
-      surfaceTemp: summary.surface_temperature || 28.4,
-      surfaceSalinity: summary.surface_salinity || 33.1,
-      mixedLayerDepth: summary.mixed_layer_depth || 35,
-      profile: chartData
     });
   }
 
   const primaryFloat = floats.length > 0 ? floats[0] : null;
-  const defaultLat = locationInfo.latitude || 20.0;
-  const defaultLng = locationInfo.longitude || 0.0;
 
-  // 3. Build scientific KPI cards from real backend observations and summary
-  let kpis = raw.kpis;
-  if (!kpis || kpis.length === 0) {
-    kpis = [];
+  // 3. Build scientific KPI cards from real backend observations and summary ONLY
+  let kpis = [];
+  if (raw.kpis && Array.isArray(raw.kpis)) {
+    kpis = raw.kpis;
+  } else if (!isGeneral && !isEmpty) {
     if (keyFindings.length > 0) {
       keyFindings.forEach((kf, i) => {
         kpis.push({
@@ -152,68 +147,76 @@ export function normalizeBackendQueryResponse(raw, originalQuery) {
           icon: kf.includes('TEMP') ? 'Thermometer' : (kf.includes('PSAL') ? 'Droplets' : 'Activity')
         });
       });
-    } else {
-      kpis = [
-        { 
-          label: "SEA TEMPERATURE", 
-          value: summary.surface_temperature !== undefined ? `${summary.surface_temperature} °C` : "Unavailable", 
-          anomaly: summary.surface_temperature > 28 ? "+0.8°C Anomaly" : "In-situ Observation", 
-          riskRelevance: "Upper Ocean Thermal Content", 
-          riskLevel: "nominal", 
-          type: "temp", 
-          icon: "Thermometer" 
-        },
-        { 
-          label: "PRACTICAL SALINITY", 
-          value: summary.surface_salinity !== undefined ? `${summary.surface_salinity} PSU` : "Unavailable", 
-          anomaly: "Nominal Halocline", 
-          riskRelevance: "Salinity Stratification", 
-          riskLevel: "nominal", 
-          type: "salinity", 
-          icon: "Droplets" 
-        },
-        { 
-          label: "MIXED LAYER DEPTH (MLD)", 
-          value: summary.mixed_layer_depth !== undefined ? `${summary.mixed_layer_depth} m` : "Unavailable", 
-          anomaly: "Density Threshold: 0.03 kg/m³", 
-          riskRelevance: "Mixed Layer Dynamics", 
-          riskLevel: "nominal", 
-          type: "depth", 
-          icon: "Layers" 
-        },
-        { 
-          label: "DATA PROVENANCE", 
-          value: `${citations.length || floats.length} Float(s) Cited`, 
-          anomaly: "IOC/WMO QC Flag = 1", 
-          riskRelevance: primaryFloat ? `WMO #${primaryFloat.wmoNumber}` : "Global ARGO Array", 
-          riskLevel: "nominal", 
-          type: "float", 
-          icon: "Activity" 
-        }
-      ];
+    } else if (summary.surface_temperature !== undefined || summary.surface_salinity !== undefined) {
+      if (summary.surface_temperature !== undefined) {
+        kpis.push({
+          label: "SEA TEMPERATURE",
+          value: `${summary.surface_temperature} °C`,
+          anomaly: "In-situ Observation",
+          riskRelevance: "Upper Ocean Thermal Content",
+          riskLevel: "nominal",
+          type: "temp",
+          icon: "Thermometer"
+        });
+      }
+      if (summary.surface_salinity !== undefined) {
+        kpis.push({
+          label: "PRACTICAL SALINITY",
+          value: `${summary.surface_salinity} PSU`,
+          anomaly: "In-situ Measurement",
+          riskRelevance: "Salinity Stratification",
+          riskLevel: "nominal",
+          type: "salinity",
+          icon: "Droplets"
+        });
+      }
+      if (summary.mixed_layer_depth !== undefined) {
+        kpis.push({
+          label: "MIXED LAYER DEPTH (MLD)",
+          value: `${summary.mixed_layer_depth} m`,
+          anomaly: "Density Threshold: 0.03 kg/m³",
+          riskRelevance: "Mixed Layer Dynamics",
+          riskLevel: "nominal",
+          type: "depth",
+          icon: "Layers"
+        });
+      }
+      if (floats.length > 0) {
+        kpis.push({
+          label: "DATA PROVENANCE",
+          value: `${floats.length} Float(s) Cited`,
+          anomaly: "IOC/WMO QC Flag = 1",
+          riskRelevance: primaryFloat ? `WMO #${primaryFloat.wmoNumber}` : "Global ARGO Array",
+          riskLevel: "nominal",
+          type: "float",
+          icon: "Activity"
+        });
+      }
     }
   }
 
-  const queryResolved = originalQuery || raw.query || raw.raw_query || "Climate Risk Inquiry";
+  const queryResolved = originalQuery || raw.query || raw.raw_query || "Oceanographic Inquiry";
   const locName = raw.location?.name || raw.structured_query?.location?.name || "";
 
   return {
     query: queryResolved,
     text,
-    queryIntent: raw.intent || raw.queryIntent || "spatial_query",
-    riskLevel: raw.riskLevel || "nominal",
-    riskTitle: locName ? `Ocean Climate Assessment: ${locName}` : (raw.riskTitle || "Oceanographic Intelligence Assessment"),
-    riskSummary: keyFindings.length > 0 ? keyFindings[0] : (raw.answer ? raw.answer.split('\n\n')[0].replace(/^[#*\s-]+/, '') : "Verified in-situ observations retrieved from active profiling floats."),
-    confidence: "100% Verified In-situ Data (IOC/WMO Standards)",
+    queryIntent,
+    isGeneral,
+    isEmpty,
+    riskLevel: (isGeneral || isEmpty) ? null : (raw.riskLevel || "nominal"),
+    riskTitle: (isGeneral || isEmpty) ? (isGeneral ? "General Oceanographic Inquiry" : "No Observations Found") : (locName ? `Ocean Climate Assessment: ${locName}` : (raw.riskTitle || "Oceanographic Intelligence Assessment")),
+    riskSummary: keyFindings.length > 0 ? keyFindings[0] : (raw.answer ? raw.answer.split('\n\n')[0].replace(/^[#*\s-]+/, '') : "In-situ ARGO profiling observations."),
+    confidence: isGeneral ? "Authoritative Platform & Data Source Reference" : (isEmpty ? "Zero Matched Observations" : "100% Verified In-situ Data (IOC/WMO Standards)"),
     comparison: raw.comparison || null,
-    hazards: raw.hazards || [],
-    actions: raw.actions || [],
+    hazards: (isGeneral || isEmpty) ? [] : (raw.hazards || []),
+    actions: (isGeneral || isEmpty) ? [] : (raw.actions || []),
     kpis,
     floats,
     relevantFloatId: primaryFloat ? primaryFloat.id : null,
     chartData,
     chartType: chartDataRaw.parameter === 'PSAL' ? 'salinity' : 'temp',
-    mapFocus: primaryFloat ? { lat: primaryFloat.lat, lng: primaryFloat.lng, zoom: 6 } : { lat: defaultLat, lng: defaultLng, zoom: 4 },
+    mapFocus: primaryFloat ? { lat: primaryFloat.lat, lng: primaryFloat.lng, zoom: 6 } : null,
     followUps: followUpSuggestions,
     source: raw.source || { provider: "FastAPI + ARGO GDAC Engine", quality: "RTQC PASS" },
     citations: raw.citations || [],
@@ -264,13 +267,22 @@ export async function queryClimateIntelligence({ query, conversationId = null, c
         isMock: false
       };
     } catch (err2) {
-      console.warn(`[FloatChat] Backend call failed (${err.message}). Falling back to simulation...`);
-      const fallback = mockSubmitQuery(query);
+      console.warn(`[FloatChat] Backend call failed (${err.message})`);
       return {
-        success: true,
-        data: normalizeBackendQueryResponse(fallback, query),
-        isMock: true,
-        backendError: err.message
+        success: false,
+        error: err.message,
+        data: {
+          query,
+          text: `### Connection Error\n\nUnable to reach the FloatChat oceanographic engine (${err.message}). Please check your connection and retry.`,
+          queryIntent: "error",
+          isGeneral: true,
+          isEmpty: true,
+          kpis: [],
+          floats: [],
+          chartData: [],
+          followUps: ["Show ARGO floats near Miami", "What is ARGO?", "Where is the data fetched from?"]
+        },
+        isMock: false
       };
     }
   }

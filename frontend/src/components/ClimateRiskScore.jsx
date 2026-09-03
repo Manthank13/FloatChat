@@ -16,7 +16,7 @@ import {
 export default function ClimateRiskScore({ 
   overallScore = 78, 
   overallLevel = "elevated", 
-  regionName = "Bay of Bengal / Chennai Coast",
+  regionName = "Regional Ocean Basin",
   onOpenEvidence,
   onNavigateToMap,
   onAskAboutRisk
@@ -34,11 +34,11 @@ export default function ClimateRiskScore({
       color: 'var(--amber-warning)',
       keySignals: [
         'Tropical Cyclone Heat Potential > 85 kJ/cm²',
-        'SST 28.4°C (+0.8°C above threshold)',
-        'Halocline Barrier Layer (28m freshwater cap)'
+        'Upper Ocean Thermal Energy Concentration',
+        'Halocline Barrier Layer & Buoyancy Stratification'
       ],
       mechanisms: 'Freshwater capping inhibits wind mixing, trapping high thermal energy in the upper water column and providing continuous thermodynamic enthalpy flux.',
-      evidenceCount: '4 Sensor Floats (ARGO-IN-2902741)',
+      evidenceCount: 'Calibrated ARGO CTD Profiling Array',
       severityTag: 'High Energy Potential'
     },
     {

@@ -1,4 +1,4 @@
-﻿"""
+"""
 Query parser implementation converting natural-language oceanographic questions
 into validated Pydantic StructuredQuery objects.
 
@@ -476,6 +476,19 @@ class DeterministicQueryParser(BaseQueryParser):
         parameters: List[OceanParameter],
     ) -> QueryIntent:
         """Classify user intent based on extracted entities and keywords."""
+        # 0. General / Conversational / Data Source / Explanatory inquiries
+        general_triggers = [
+            "data source", "where is", "where do", "where does", "fetch", "fetched",
+            "what data", "who provides", "how does", "what is argo", "what is erddap",
+            "what does this app", "what can you do", "help", "about floatchat",
+            "how do you work", "explain argo", "how does this work", "source of data",
+            "data provenance", "what is this", "tell me about", "what is the data",
+            "who built", "what is your source", "how are floats", "explain the dataset"
+        ]
+        if any(t in lower_query for t in general_triggers):
+            if not location_filter and not platform_id and not comparison_filter and not depth_filter and not parameters:
+                return QueryIntent.GENERAL_QUERY
+
         # 1. Float / Platform specific query
         if platform_id or any(word in lower_query for word in ["trajectory", "track float", "float status", "argo float"]):
             if platform_id:
@@ -515,6 +528,9 @@ class DeterministicQueryParser(BaseQueryParser):
         comparison: Optional[ComparisonFilter],
     ) -> float:
         """Compute confidence score for the extraction (0.0 to 1.0)."""
+        if intent == QueryIntent.GENERAL_QUERY:
+            return 0.95
+
         if intent == QueryIntent.UNKNOWN:
             return 0.1
 
@@ -536,6 +552,12 @@ class DeterministicQueryParser(BaseQueryParser):
 
     def _validate_and_normalize(self, sq: StructuredQuery) -> StructuredQuery:
         """Validate query parameters and populate error messages if invalid."""
+        if sq.intent == QueryIntent.GENERAL_QUERY:
+            sq.is_valid = True
+            sq.validation_errors = []
+            sq.confidence = 0.95
+            return sq
+
         errors: List[str] = []
 
         # Validate unknown intent
