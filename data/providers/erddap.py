@@ -55,14 +55,31 @@ class ErddapArgoProvider(BaseArgoProvider):
             clean_plat = str(query.platform_id).strip()
             query_constraints.append(f'platform_number="{clean_plat}"')
 
-        # 2. Spatial Filter
-        if min_lat is not None:
+        # 2. Spatial Filter: Clamp maximum bounding box span to prevent memory overflows on large ocean basins
+        if min_lat is not None and max_lat is not None:
+            c_lat = (float(min_lat) + float(max_lat)) / 2.0
+            span_lat = float(max_lat) - float(min_lat)
+            if span_lat > 8.0:
+                min_lat = c_lat - 4.0
+                max_lat = c_lat + 4.0
             query_constraints.append(f"latitude>={float(min_lat):.4f}")
-        if max_lat is not None:
             query_constraints.append(f"latitude<={float(max_lat):.4f}")
-        if min_lon is not None:
+        elif min_lat is not None:
+            query_constraints.append(f"latitude>={float(min_lat):.4f}")
+        elif max_lat is not None:
+            query_constraints.append(f"latitude<={float(max_lat):.4f}")
+
+        if min_lon is not None and max_lon is not None:
+            c_lon = (float(min_lon) + float(max_lon)) / 2.0
+            span_lon = float(max_lon) - float(min_lon)
+            if span_lon > 8.0:
+                min_lon = c_lon - 4.0
+                max_lon = c_lon + 4.0
             query_constraints.append(f"longitude>={float(min_lon):.4f}")
-        if max_lon is not None:
+            query_constraints.append(f"longitude<={float(max_lon):.4f}")
+        elif min_lon is not None:
+            query_constraints.append(f"longitude>={float(min_lon):.4f}")
+        elif max_lon is not None:
             query_constraints.append(f"longitude<={float(max_lon):.4f}")
 
         # 3. Time Filter
