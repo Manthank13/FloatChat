@@ -3,7 +3,6 @@ import {
   User, 
   LogOut, 
   ShieldCheck, 
-  Building2, 
   ChevronDown,
   Bookmark,
   Bell
@@ -56,8 +55,6 @@ export default function UserMenu({ onOpenWatchlist, onOpenAlertSettings }) {
   const displayName = user?.name || 'Climate Analyst';
   const displayEmail = user?.email || 'analyst@floatchat.ai';
   const displayRole = user?.role || 'Climate Intelligence Analyst';
-  const displayOrg = user?.organization || 'Global Environmental Array';
-
   const userInitial = displayName.charAt(0).toUpperCase() || 'A';
 
   return (
@@ -91,7 +88,7 @@ export default function UserMenu({ onOpenWatchlist, onOpenAlertSettings }) {
               {user?.avatarUrl ? (
                 <img src={user.avatarUrl} alt={displayName} className="header-avatar-img" />
               ) : (
-                <User size={18} className="text-cyan" />
+                <User size={16} className="text-cyan" />
               )}
             </div>
             <div className="header-user-info">
@@ -99,64 +96,49 @@ export default function UserMenu({ onOpenWatchlist, onOpenAlertSettings }) {
               <span className="header-email font-mono">{displayEmail}</span>
               <div className="header-badge-row">
                 <span className="badge badge-cyan font-mono">{displayRole}</span>
+                <span className="verified-pill font-mono">
+                  <ShieldCheck size={10} className="text-emerald" />
+                  <span>Verified</span>
+                </span>
               </div>
             </div>
           </div>
 
           <div className="dropdown-divider" />
 
-          {/* Organization Info */}
-          <div className="dropdown-section">
-            <div className="org-info-row font-mono">
-              <Building2 size={12} className="text-muted" />
-              <span className="org-text">{displayOrg}</span>
-            </div>
-            <div className="status-verify-row font-mono">
-              <ShieldCheck size={12} className="text-emerald" />
-              <span>Verified Research Access</span>
-            </div>
+          {/* Quick Actions / Shortcuts */}
+          <div className="dropdown-actions-group">
+            {onOpenWatchlist && (
+              <button 
+                type="button"
+                className="btn-menu-action font-mono"
+                onClick={handleWatchlistClick}
+              >
+                <Bookmark size={13} className="text-cyan" />
+                <span className="action-label">My Climate Watchlist</span>
+              </button>
+            )}
+
+            {onOpenAlertSettings && (
+              <button 
+                type="button"
+                className="btn-menu-action font-mono"
+                onClick={handleAlertSettingsClick}
+              >
+                <Bell size={13} className="text-cyan" />
+                <span className="action-label">Alert & Location Settings</span>
+                <span className={`badge ${user?.location?.status === 'enabled' ? 'badge-emerald' : 'badge-amber'} font-mono status-badge`}>
+                  {user?.location?.status === 'enabled' ? 'Active' : 'Setup'}
+                </span>
+              </button>
+            )}
           </div>
 
           <div className="dropdown-divider" />
-
-          {/* Custom Watchlist Shortcut */}
-          {onOpenWatchlist && (
-            <>
-              <div className="dropdown-section">
-                <button 
-                  className="btn-watchlist-menu font-mono"
-                  onClick={handleWatchlistClick}
-                >
-                  <Bookmark size={13} className="text-cyan" />
-                  <span>My Climate Watchlist</span>
-                </button>
-              </div>
-              <div className="dropdown-divider" />
-            </>
-          )}
-
-          {/* Alert & Location Settings */}
-          {onOpenAlertSettings && (
-            <>
-              <div className="dropdown-section">
-                <button 
-                  className="btn-watchlist-menu font-mono"
-                  onClick={handleAlertSettingsClick}
-                >
-                  <Bell size={13} className="text-cyan" />
-                  <span style={{ flex: 1, textAlign: 'left' }}>Alert & Location Settings</span>
-                  <span className={`badge ${user?.location?.status === 'enabled' ? 'badge-emerald' : 'badge-amber'} font-mono`} style={{ fontSize: '9.5px', padding: '1px 6px' }}>
-                    {user?.location?.status === 'enabled' ? 'Active' : 'Configure'}
-                  </span>
-                </button>
-              </div>
-              <div className="dropdown-divider" />
-            </>
-          )}
 
           {/* Theme Switcher */}
           <div className="dropdown-section">
-            <span className="section-title-label font-mono">APPEARANCE THEME</span>
+            <span className="section-title-label font-mono">APPEARANCE</span>
             <ThemeToggle />
           </div>
 
@@ -170,7 +152,7 @@ export default function UserMenu({ onOpenWatchlist, onOpenAlertSettings }) {
               onClick={handleLogout}
               role="menuitem"
             >
-              <LogOut size={14} className="text-rose" />
+              <LogOut size={13} className="text-rose" />
               <span>Sign Out of Mission</span>
             </button>
           </div>
@@ -189,7 +171,7 @@ export default function UserMenu({ onOpenWatchlist, onOpenAlertSettings }) {
           gap: 7px;
           background: var(--data-surface);
           border: 1px solid var(--border-light);
-          padding: 4px 8px 4px 5px;
+          padding: 3px 8px 3px 4px;
           border-radius: var(--radius-full);
           cursor: pointer;
           transition: all var(--transition-fast);
@@ -203,8 +185,8 @@ export default function UserMenu({ onOpenWatchlist, onOpenAlertSettings }) {
         }
 
         .trigger-avatar-circle {
-          width: 26px;
-          height: 26px;
+          width: 24px;
+          height: 24px;
           border-radius: 50%;
           background: var(--cyan-subtle);
           border: 1px solid var(--data-border-active);
@@ -221,13 +203,13 @@ export default function UserMenu({ onOpenWatchlist, onOpenAlertSettings }) {
         }
 
         .trigger-initial {
-          font-size: 11px;
+          font-size: 10px;
           font-weight: 800;
           color: var(--cyan-primary);
         }
 
         .trigger-name {
-          font-size: 12px;
+          font-size: 11.5px;
           font-weight: 700;
           color: var(--text-primary);
         }
@@ -243,34 +225,34 @@ export default function UserMenu({ onOpenWatchlist, onOpenAlertSettings }) {
 
         .user-menu-dropdown {
           position: absolute;
-          top: calc(100% + 8px);
+          top: calc(100% + 6px);
           right: 0;
-          width: 280px;
+          width: 256px;
           background: var(--glass-panel-elevated);
           border: 1px solid var(--data-border-active);
           border-radius: var(--radius-lg);
           box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7), 0 0 16px rgba(0, 229, 255, 0.1);
-          padding: 12px;
+          padding: 8px;
           display: flex;
           flex-direction: column;
-          gap: 10px;
+          gap: 6px;
           z-index: 1100;
-          animation: scaleUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+          animation: scaleUp 0.15s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         .user-dropdown-header {
           display: flex;
           align-items: flex-start;
-          gap: 10px;
+          gap: 8px;
           padding: 4px;
         }
 
         .header-avatar-circle {
-          width: 38px;
-          height: 38px;
+          width: 32px;
+          height: 32px;
           border-radius: 50%;
-          background: rgba(0, 229, 255, 0.15);
-          border: 1px solid rgba(0, 229, 255, 0.3);
+          background: var(--cyan-subtle);
+          border: 1px solid var(--data-border-active);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -289,17 +271,18 @@ export default function UserMenu({ onOpenWatchlist, onOpenAlertSettings }) {
           flex-direction: column;
           gap: 2px;
           min-width: 0;
+          flex: 1;
         }
 
         .header-name {
-          font-size: 13px;
+          font-size: 12px;
           font-weight: 700;
           color: var(--text-primary);
           line-height: 1.2;
         }
 
         .header-email {
-          font-size: 10px;
+          font-size: 9.5px;
           color: var(--text-muted);
           overflow: hidden;
           text-overflow: ellipsis;
@@ -307,98 +290,128 @@ export default function UserMenu({ onOpenWatchlist, onOpenAlertSettings }) {
         }
 
         .header-badge-row {
+          display: flex;
+          align-items: center;
+          gap: 5px;
           margin-top: 3px;
+          flex-wrap: wrap;
+        }
+
+        .verified-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 3px;
+          font-size: 8px;
+          color: var(--emerald-nominal);
+          background: rgba(16, 185, 129, 0.1);
+          padding: 1px 5px;
+          border-radius: var(--radius-sm);
+          border: 1px solid rgba(16, 185, 129, 0.25);
         }
 
         .dropdown-divider {
           height: 1px;
           background: var(--border-light);
-          margin: 0 -4px;
+          margin: 0 -2px;
+        }
+
+        .dropdown-actions-group {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .btn-menu-action {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 6px 8px;
+          background: transparent;
+          border: 1px solid transparent;
+          border-radius: var(--radius-md);
+          color: var(--text-secondary);
+          font-size: 10.5px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all var(--transition-fast);
+          width: 100%;
+          text-align: left;
+        }
+
+        .btn-menu-action:hover {
+          background: var(--data-surface-hover);
+          color: var(--text-primary);
+          border-color: var(--data-border);
+        }
+
+        .action-label {
+          flex: 1;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .status-badge {
+          font-size: 8.5px;
+          padding: 1px 5px;
         }
 
         .dropdown-section {
           display: flex;
           flex-direction: column;
-          gap: 6px;
-          padding: 0 4px;
+          gap: 4px;
+          padding: 2px 4px;
         }
 
         .section-title-label {
-          font-size: 9px;
+          font-size: 8.5px;
           color: var(--text-muted);
           font-weight: 700;
           letter-spacing: 0.08em;
         }
 
-        .org-info-row {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 10.5px;
-          color: var(--text-secondary);
-        }
-
-        .org-text {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .status-verify-row {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 10px;
-          color: var(--emerald-nominal);
-        }
-
-        .btn-watchlist-menu {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          width: 100%;
-          padding: 7px 10px;
-          background: rgba(0, 229, 255, 0.08);
-          border: 1px solid rgba(0, 229, 255, 0.25);
-          border-radius: var(--radius-sm);
-          color: var(--text-primary);
-          font-size: 11.5px;
-          font-weight: 700;
-          cursor: pointer;
-          transition: all var(--transition-fast);
-        }
-
-        .btn-watchlist-menu:hover {
-          background: rgba(0, 229, 255, 0.18);
-          border-color: var(--cyan-primary);
+        .dropdown-footer {
+          padding-top: 2px;
         }
 
         .btn-logout-action {
           display: flex;
           align-items: center;
-          justify-content: center;
-          gap: 6px;
+          gap: 7px;
           width: 100%;
-          padding: 8px 12px;
-          background: rgba(244, 63, 94, 0.1);
-          border: 1px solid rgba(244, 63, 94, 0.25);
-          border-radius: var(--radius-sm);
-          color: var(--text-primary);
-          font-size: 11.5px;
-          font-weight: 700;
+          padding: 6px 8px;
+          background: rgba(244, 63, 94, 0.08);
+          border: 1px solid rgba(244, 63, 94, 0.2);
+          border-radius: var(--radius-md);
+          color: #F87171;
+          font-size: 10.5px;
+          font-weight: 600;
           cursor: pointer;
           transition: all var(--transition-fast);
         }
 
         .btn-logout-action:hover {
-          background: rgba(244, 63, 94, 0.25);
-          border-color: var(--red-critical);
-          color: #FFFFFF;
+          background: rgba(244, 63, 94, 0.18);
+          border-color: rgba(244, 63, 94, 0.4);
+          color: #FECACA;
         }
 
-        .text-rose { color: var(--red-critical); }
         .text-cyan { color: var(--cyan-primary); }
         .text-emerald { color: var(--emerald-nominal); }
+        .text-rose { color: var(--red-critical); }
+        .badge-amber { background: rgba(245, 158, 11, 0.15); color: var(--amber-warning); border: 1px solid rgba(245, 158, 11, 0.3); }
+        .badge-emerald { background: rgba(16, 185, 129, 0.15); color: var(--emerald-nominal); border: 1px solid rgba(16, 185, 129, 0.3); }
+
+        @keyframes scaleUp {
+          from {
+            opacity: 0;
+            transform: scale(0.96) translateY(-4px);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
       `}</style>
     </div>
   );

@@ -13,9 +13,9 @@ import About from './pages/About';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
-import { queryClimateIntelligence, checkSystemHealth } from './api/climateApi';
+import { queryClimateIntelligence } from './api/climateApi';
 import { useAuth } from './context/useAuth';
-import { Activity, Radio } from 'lucide-react';
+import { Activity } from 'lucide-react';
 
 const INITIAL_MISSION_LOGS = [
   {
@@ -100,9 +100,6 @@ export default function App() {
     }
   });
 
-  // Backend Live Status State
-  const [backendStatus, setBackendStatus] = useState({ isLive: false, mode: 'mock' });
-
   // Sync Sidebar Expanded State to localStorage
   useEffect(() => {
     localStorage.setItem('floatchat_sidebar_expanded', JSON.stringify(isSidebarOpen));
@@ -112,15 +109,6 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('floatchat_mission_logs', JSON.stringify(missionLogs));
   }, [missionLogs]);
-
-  // Periodic Backend Health Polling
-  useEffect(() => {
-    checkSystemHealth().then(setBackendStatus);
-    const interval = setInterval(() => {
-      checkSystemHealth().then(setBackendStatus);
-    }, 15000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Sync browser path
   useEffect(() => {
@@ -529,16 +517,6 @@ export default function App() {
         onClose={() => setIsAlertSettingsOpen(false)}
       />
 
-      {/* Persistent System Telemetry Pill at Bottom Left */}
-      <div className="global-system-telemetry-pill font-mono">
-        <Radio size={11} className={backendStatus.isLive ? "text-emerald animate-pulse" : "text-cyan animate-pulse"} />
-        <span>
-          {backendStatus.isLive 
-            ? "FASTAPI CLIMATE AI LIVE • 3,842 IN-SITU SENSORS ASSIMILATED" 
-            : "IN-SITU SENSOR SIMULATION ENGINE • 3,842 ARGO FLOATS ACTIVE"}
-        </span>
-      </div>
-
       <style>{`
         .floatchat-observatory-app {
           display: flex;
@@ -566,31 +544,6 @@ export default function App() {
           min-width: 0;
           position: relative;
           z-index: 5;
-        }
-
-        .global-system-telemetry-pill {
-          position: fixed;
-          bottom: 12px;
-          right: 16px;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          background: var(--glass-panel-elevated);
-          border: 1px solid var(--border-light);
-          padding: 4px 10px;
-          border-radius: var(--radius-full);
-          font-size: 9.5px;
-          letter-spacing: 0.05em;
-          color: var(--text-muted);
-          z-index: 100;
-          backdrop-filter: blur(12px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-        }
-
-        @media (max-width: 768px) {
-          .global-system-telemetry-pill {
-            display: none;
-          }
         }
 
         @media (max-width: 480px) {
