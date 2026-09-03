@@ -128,7 +128,7 @@ class ArgoDataRetriever(BaseDataRetriever):
                 max_lat = bbox.max_latitude if hasattr(bbox, "max_latitude") else bbox[2]
                 max_lon = bbox.max_longitude if hasattr(bbox, "max_longitude") else bbox[3]
             elif sq.location.latitude is not None and sq.location.longitude is not None:
-                r_km = sq.radius_km or (sq.location.radius_km if sq.location.radius_km is not None else 50.0)
+                r_km = sq.radius_km or (sq.location.radius_km if sq.location.radius_km is not None else 200.0)
                 d_lat = r_km / 111.0
                 d_lon = r_km / (111.0 * max(0.1, math.cos(math.radians(sq.location.latitude))))
                 min_lat = sq.location.latitude - d_lat

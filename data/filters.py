@@ -29,7 +29,7 @@ def filter_by_platform(observations: List[ArgoObservation], platform_id: Optiona
 def filter_by_spatial(
     observations: List[ArgoObservation],
     location: Optional[LocationFilter],
-    default_radius_km: Optional[float] = 50.0,
+    default_radius_km: Optional[float] = 200.0,
 ) -> List[ArgoObservation]:
     """
     Filter observations by radial distance from a point or within a geographic bounding box.
@@ -63,7 +63,7 @@ def filter_by_spatial(
     if location.latitude is not None and location.longitude is not None:
         center_lat = location.latitude
         center_lon = location.longitude
-        radius = location.radius_km if location.radius_km is not None else (default_radius_km or 50.0)
+        radius = location.radius_km if location.radius_km is not None else (default_radius_km or 200.0)
 
         matched = []
         for obs in observations:
