@@ -9,6 +9,10 @@ def get_argo_data_source(provider_override: str = None) -> ArgoDataSource:
     """Factory function instantiating the active Argo data provider based on configuration or runtime override."""
     provider_name = (provider_override or settings.DATA_PROVIDER).strip().lower()
 
+    if provider_override is None and settings.is_testing():
+        logger.info("Initializing MockArgoDataSource provider (testing mode)")
+        return MockArgoDataSource()
+
     if provider_name in ("mock", "demo", "synthetic"):
         logger.info("Initializing MockArgoDataSource provider")
         return MockArgoDataSource()

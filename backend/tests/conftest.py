@@ -9,9 +9,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # Ensure testing environment is active during tests so MongoDB Atlas is never contacted
 os.environ["ENVIRONMENT"] = "testing"
+os.environ["DATA_PROVIDER"] = "mock"
 
 from app.core.config import settings
 settings.ENVIRONMENT = "testing"
+settings.DATA_PROVIDER = "mock"
 
 from app.db.repositories.chat_message import ChatMessageRepository
 from app.db.repositories.chat_session import ChatSessionRepository

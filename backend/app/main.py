@@ -5,6 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.api.frontend import router as frontend_router
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.exceptions import (
@@ -12,6 +13,7 @@ from app.core.exceptions import (
     http_exception_handler,
     validation_exception_handler,
 )
+from fastapi.openapi.docs import get_swagger_ui_html
 from app.core.logging import logger
 from app.db.repositories.chat_message import ChatMessageRepository
 from app.db.repositories.chat_session import ChatSessionRepository
@@ -81,6 +83,15 @@ def create_application() -> FastAPI:
 
     # Include API Routers
     app.include_router(api_router, prefix=settings.API_V1_STR)
+    app.include_router(frontend_router, prefix="/api", tags=["Frontend Product Contract"])
+
+    @app.get("/docs", include_in_schema=False)
+    async def get_swagger_docs():
+        return get_swagger_ui_html(openapi_url=f"{settings.API_V1_STR}/openapi.json", title=settings.PROJECT_NAME)
+
+    @app.get("/openapi.json", include_in_schema=False)
+    async def get_root_openapi():
+        return app.openapi()
 
     return app
 
