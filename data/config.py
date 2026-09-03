@@ -42,7 +42,7 @@ class DataConfig(BaseModel):
         description="Maximum number of observation records returned per query",
     )
     timeout_seconds: float = Field(
-        default=15.0,
+        default=25.0,
         gt=0.0,
         description="Network request timeout in seconds for remote providers",
     )
@@ -54,9 +54,19 @@ class DataConfig(BaseModel):
     @classmethod
     def from_env(cls) -> "DataConfig":
         """Construct DataConfig from active environment variables."""
+        provider_env = os.environ.get("ARGO_DATA_PROVIDER") or os.environ.get("DATA_PROVIDER")
+        is_prod = os.environ.get("ENVIRONMENT", "").lower() == "production" or os.environ.get("RENDER") == "true"
+
+        if is_prod and (not provider_env or provider_env in ("sample", "mock")):
+            provider_type = "erddap"
+        elif provider_env:
+            provider_type = provider_env.lower().strip()
+        else:
+            provider_type = "erddap"
+
         return cls(
-            provider_type=os.environ.get("ARGO_DATA_PROVIDER", "erddap"),
+            provider_type=provider_type,
             data_path=os.environ.get("ARGO_DATA_PATH"),
-            remote_api_url=os.environ.get("ARGOVIS_API_URL", "https://erddap.ifremer.fr/erddap/tabledap/ArgoFloats.json"),
+            remote_api_url=os.environ.get("ARGO_BASE_URL") or os.environ.get("ARGOVIS_API_URL", "https://erddap.ifremer.fr/erddap/tabledap/ArgoFloats.json"),
             remote_api_key_env_var=os.environ.get("ARGOVIS_API_KEY_VAR", "ARGOVIS_API_KEY"),
         )
