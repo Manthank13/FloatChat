@@ -1,4 +1,4 @@
-﻿"""
+"""
 FloatChat Data Package - ARGO data models, loaders, spatial algorithms, and query engines.
 """
 
@@ -11,7 +11,13 @@ from data.argo_loader import (
 )
 from data.config import DataConfig
 from data.filters import (
+    approximate_potential_density,
+    calculate_barrier_layer_thickness,
+    calculate_mixed_layer_depth,
+    calculate_thermocline_gradient,
+    compute_oceanographic_indicators,
     compute_statistics,
+    detect_marine_heatwave_anomalies,
     filter_by_depth,
     filter_by_platform,
     filter_by_quality,
@@ -90,6 +96,12 @@ __all__ = [
     "filter_by_quality",
     "compute_statistics",
     "generate_data_summary",
+    "calculate_mixed_layer_depth",
+    "calculate_thermocline_gradient",
+    "calculate_barrier_layer_thickness",
+    "detect_marine_heatwave_anomalies",
+    "compute_oceanographic_indicators",
+    "approximate_potential_density",
     "EARTH_RADIUS_KM",
     "haversine_distance",
     "is_point_within_radius",

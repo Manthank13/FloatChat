@@ -1,4 +1,4 @@
-﻿"""
+"""
 Oceanographic terminology, parameter synonyms, geographic locations, and unit definitions.
 
 This module maps natural language expressions used by scientists and laypersons to
@@ -256,10 +256,10 @@ KNOWN_OCEAN_LOCATIONS: Dict[str, Dict[str, Any]] = {
     },
     "indian ocean": {
         "name": "Indian Ocean",
-        "latitude": -10.0,
+        "latitude": 5.0,
         "longitude": 75.0,
         "bounding_box": (-40.0, 30.0, 25.0, 115.0),
-        "default_radius_km": 1000.0,
+        "default_radius_km": 2500.0,
     },
     "equatorial indian ocean": {
         "name": "Equatorial Indian Ocean",

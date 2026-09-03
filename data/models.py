@@ -1,4 +1,4 @@
-﻿"""
+"""
 Pydantic data models for ARGO oceanographic observations, vertical profiles,
 structured retrieval results, and pre-computed statistical summaries.
 """
@@ -130,6 +130,9 @@ class DataSummary(BaseModel):
     parameter_summaries: Dict[str, Dict[str, Any]] = Field(
         default_factory=dict, description="Detailed per-parameter statistics"
     )
+    indicators: Dict[str, Any] = Field(
+        default_factory=dict, description="Physical oceanographic indicators (MLD, thermocline, barrier layer, MHW)"
+    )
 
     def to_text_summary(self) -> str:
         """Format an informative, scientific text summary for the AI response generator."""
@@ -175,6 +178,7 @@ class RetrievalResult(BaseModel):
     matched_platforms: List[str] = Field(default_factory=list, description="Unique platform WMO numbers present")
     summary: Optional[DataSummary] = Field(default=None, description="Pre-computed statistical summary")
     summary_statistics: Dict[str, Any] = Field(default_factory=dict, description="Calculated descriptive statistics")
+    indicators: Dict[str, Any] = Field(default_factory=dict, description="Calculated physical oceanographic indicators")
     spatial_info: Dict[str, Any] = Field(default_factory=dict, description="Location, coordinates, and radius constraints")
     depth_info: Dict[str, Any] = Field(default_factory=dict, description="Depth filters applied")
     time_info: Dict[str, Any] = Field(default_factory=dict, description="Temporal filters applied")
@@ -205,6 +209,7 @@ class RetrievalResult(BaseModel):
             "matched_platforms": self.matched_platforms,
             "summary": sum_dict,
             "summary_statistics": self.summary_statistics,
+            "indicators": self.indicators,
             "spatial_info": self.spatial_info,
             "depth_info": self.depth_info,
             "time_info": self.time_info,

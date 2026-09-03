@@ -1,10 +1,16 @@
-﻿"""
+"""
 FloatChat AI Package - Oceanographic natural language understanding, query interpretation, and response synthesis.
 """
 
 from ai.config import AIConfig
 from ai.engine import FloatChatAIEngine
-from ai.llm_client import BaseLLMClient, GeminiLLMClient, MockLLMClient, create_llm_client
+from ai.llm_client import (
+    BaseLLMClient,
+    GeminiLLMClient,
+    MockLLMClient,
+    OpenAILLMClient,
+    create_llm_client,
+)
 from ai.mappings.parser import BaseQueryParser, DeterministicQueryParser
 from ai.models import (
     BoundingBox,
@@ -26,6 +32,12 @@ from ai.response_models import (
     FloatCitation,
     MapMarker,
 )
+from ai.session import (
+    ConversationSession,
+    ConversationTurn,
+    SessionManager,
+    get_session_manager,
+)
 from ai.synthesizer import (
     BaseResponseSynthesizer,
     DeterministicResponseSynthesizer,
@@ -44,6 +56,7 @@ __all__ = [
     "BaseLLMClient",
     "MockLLMClient",
     "GeminiLLMClient",
+    "OpenAILLMClient",
     "create_llm_client",
     "BaseQueryParser",
     "DeterministicQueryParser",
@@ -63,6 +76,10 @@ __all__ = [
     "MapMarker",
     "FloatChatResponse",
     "AIResponse",
+    "ConversationTurn",
+    "ConversationSession",
+    "SessionManager",
+    "get_session_manager",
     "BaseResponseSynthesizer",
     "DeterministicResponseSynthesizer",
     "LLMResponseSynthesizer",

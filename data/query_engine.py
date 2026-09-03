@@ -1,4 +1,4 @@
-﻿"""
+"""
 ARGO Oceanographic Data Retrieval Engine for FloatChat.
 
 Executes structured queries against ARGO data sources with spatial geodesic matching,
@@ -190,6 +190,7 @@ class ArgoDataRetriever(BaseDataRetriever):
             matched_platforms=matched_platforms,
             summary=data_summary,
             summary_statistics=stats,
+            indicators=data_summary.indicators if data_summary else {},
             spatial_info=spatial_info,
             depth_info=depth_info,
             time_info=time_dict or {},

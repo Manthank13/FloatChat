@@ -6,8 +6,9 @@ scientifically rigorous natural-language answers, key findings, citations, and v
 """
 
 import abc
+import asyncio
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from ai.config import AIConfig
 from ai.llm_client import BaseLLMClient, create_llm_client
@@ -44,6 +45,20 @@ class BaseResponseSynthesizer(abc.ABC):
     ) -> FloatChatResponse:
         """Asynchronous synthesis entrypoint (defaults to sync execution)."""
         return self.synthesize(query, result)
+
+    async def synthesize_stream(
+        self,
+        query: StructuredQuery,
+        result: RetrievalResult,
+    ) -> AsyncGenerator[str, None]:
+        """Stream conversational tokens chunk-by-chunk for live client response rendering."""
+        response = await self.synthesize_async(query, result)
+        # Yield words in realistic conversational chunks
+        words = response.answer.split(" ")
+        for i, word in enumerate(words):
+            chunk = word if i == len(words) - 1 else word + " "
+            yield chunk
+            await asyncio.sleep(0.01)
 
     def _build_citations(self, result: RetrievalResult) -> List[FloatCitation]:
         """Extract unique float platform citations from observations."""
@@ -291,6 +306,22 @@ class DeterministicResponseSynthesizer(BaseResponseSynthesizer):
         lines.append(f"- **Depth Range:** {result.depth_info.get('depth_min') or (result.summary.depth_coverage.get('min_depth_m') if result.summary else 'Surface')}m to {result.depth_info.get('depth_max') or (result.summary.depth_coverage.get('max_depth_m') if result.summary else '200')}m")
         lines.append(f"- **Active Platform(s):** Float WMO {platform_str}")
 
+        # Physical Indicators Section if available
+        if result.indicators:
+            ind = result.indicators
+            mld = ind.get("mixed_layer_depth", {})
+            therm = ind.get("thermocline", {})
+            blt = ind.get("barrier_layer", {})
+            if mld.get("mld_temperature_m") or therm.get("thermocline_depth_m") or blt.get("barrier_layer_thickness_m") is not None:
+                lines.append("\n### Physical Oceanographic Indicators:")
+                if mld.get("mld_temperature_m"):
+                    lines.append(f"- **Mixed Layer Depth (MLD):** {mld['mld_temperature_m']}m (Temperature threshold: ΔT = 0.2°C)")
+                if therm.get("thermocline_depth_m"):
+                    lines.append(f"- **Main Thermocline Core:** ~{therm['thermocline_depth_m']}m (Max Gradient: {therm.get('max_gradient_c_per_m')} °C/m)")
+                if blt.get("barrier_layer_thickness_m") is not None and blt.get("barrier_layer_thickness_m") > 0:
+                    lines.append(f"- **Salinity Barrier Layer:** {blt['barrier_layer_thickness_m']}m thick (Suppresses vertical heat exchange)")
+
+        # Oceanographic Domain Context
         lines.append("\n### Oceanographic Context:")
         if "Bay of Bengal" in loc_name or "Chennai" in loc_name:
             lines.append("In the western Bay of Bengal, upper ocean layers feature pronounced vertical stratification. A low-salinity surface lens created by heavy monsoon precipitation and river runoff overlays saltier subsurface waters entering from the Arabian Sea, creating a distinct vertical barrier layer.")
@@ -357,6 +388,7 @@ class LLMResponseSynthesizer(BaseResponseSynthesizer):
             f"Target Depth: {query.depth.target_depth if query.depth else 'Profile'}\n"
             f"Retrieved ARGO Data Summary: {summary_text}\n"
             f"Statistics: {result.summary_statistics}\n"
+            f"Indicators: {result.indicators}\n"
             f"Matched Floats: {result.matched_platforms}\n\n"
             f"Generate a clear, professional oceanographic response grounded strictly in these measurements."
         )
@@ -416,6 +448,7 @@ class LLMResponseSynthesizer(BaseResponseSynthesizer):
             f"User Question: {query.raw_query}\n"
             f"Retrieved ARGO Data Summary: {summary_text}\n"
             f"Statistics: {result.summary_statistics}\n"
+            f"Indicators: {result.indicators}\n"
             f"Matched Floats: {result.matched_platforms}\n\n"
             f"Generate a clear, professional oceanographic response grounded strictly in these measurements."
         )

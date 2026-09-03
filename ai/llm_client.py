@@ -1,8 +1,8 @@
 ﻿"""
 LLM Client abstraction and provider implementations for FloatChat.
 
-Allows seamless switching between Mock (offline testing), Google Gemini,
-OpenAI, or other LLM providers without altering the query parser interfaces.
+Supports OpenAI GPT (e.g. gpt-4o, gpt-4o-mini), Google Gemini,
+and Deterministic Mock implementations for offline testing.
 """
 
 import abc
@@ -94,12 +94,83 @@ class MockLLMClient(BaseLLMClient):
         return self.default_response
 
 
+class OpenAILLMClient(BaseLLMClient):
+    """
+    OpenAI GPT client integration supporting GPT-4o, GPT-4o-mini, and compatible models.
+    
+    Reads API key dynamically from environment without logging or exposing secrets.
+    Falls back to robust standard HTTP if openai package is not installed.
+    """
+
+    def __init__(self, config: Optional[AIConfig] = None):
+        super().__init__(config=config or AIConfig(llm_provider="openai", model_name="gpt-4o-mini"))
+        self.api_key = self.config.get_api_key()
+
+    def generate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+        """Generate response from OpenAI Chat Completions API."""
+        if not self.api_key:
+            raise ValueError(
+                "Missing OpenAI API key. Please set the 'OPENAI_API_KEY' environment variable."
+            )
+
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        # Try using openai SDK if available
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=self.api_key, timeout=self.config.timeout_seconds)
+            response = client.chat.completions.create(
+                model=self.config.model_name,
+                messages=messages,
+                temperature=self.config.temperature,
+                max_tokens=self.config.max_tokens,
+                response_format={"type": "json_object"} if "json" in (system_prompt or "").lower() else None,
+            )
+            return response.choices[0].message.content or "{}"
+        except ImportError:
+            # Standard library HTTP fallback
+            import urllib.error
+            import urllib.request
+
+            url = "https://api.openai.com/v1/chat/completions"
+            payload: Dict[str, Any] = {
+                "model": self.config.model_name,
+                "messages": messages,
+                "temperature": self.config.temperature,
+                "max_tokens": self.config.max_tokens,
+            }
+            if "json" in (system_prompt or "").lower():
+                payload["response_format"] = {"type": "json_object"}
+
+            data = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(
+                url,
+                data=data,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {self.api_key}",
+                },
+                method="POST",
+            )
+
+            try:
+                with urllib.request.urlopen(req, timeout=self.config.timeout_seconds) as resp:
+                    resp_data = json.loads(resp.read().decode("utf-8"))
+                    choices = resp_data.get("choices", [])
+                    if choices:
+                        return choices[0].get("message", {}).get("content", "{}")
+                    return "{}"
+            except Exception as exc:
+                logger.error("Error communicating with OpenAI API: %s", exc)
+                raise
+
+
 class GeminiLLMClient(BaseLLMClient):
     """
     Google Gemini API client integration using google-genai or direct REST endpoints.
-    
-    Adheres strictly to credential security guidelines: reads API key only from
-    the environment without hardcoding or logging credentials.
     """
 
     def __init__(self, config: Optional[AIConfig] = None):
@@ -113,7 +184,6 @@ class GeminiLLMClient(BaseLLMClient):
                 f"Missing API key for Gemini. Please set the '{self.config.api_key_env_var}' environment variable."
             )
 
-        # Lazy import to avoid unnecessary dependency crashes if SDK is not yet installed
         try:
             from google import genai
             client = genai.Client(api_key=self.api_key)
@@ -128,9 +198,8 @@ class GeminiLLMClient(BaseLLMClient):
             )
             return response.text or "{}"
         except ImportError:
-            # Fallback to direct HTTP request using urllib if SDK package is not installed
-            import urllib.request
             import urllib.error
+            import urllib.request
 
             url = (
                 f"https://generativelanguage.googleapis.com/v1beta/models/"
@@ -174,7 +243,9 @@ def create_llm_client(config: Optional[AIConfig] = None) -> BaseLLMClient:
     cfg = config or AIConfig()
     provider = cfg.llm_provider.lower()
 
-    if provider == "gemini":
+    if provider == "openai":
+        return OpenAILLMClient(config=cfg)
+    elif provider == "gemini":
         return GeminiLLMClient(config=cfg)
     elif provider == "mock":
         return MockLLMClient(config=cfg)

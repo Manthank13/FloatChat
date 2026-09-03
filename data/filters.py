@@ -1,4 +1,4 @@
-﻿"""
+"""
 Filter functions and statistical calculation utilities for ARGO oceanographic observations.
 """
 
@@ -213,6 +213,168 @@ def compute_statistics(observations: List[ArgoObservation], parameters: List[str
     return stats
 
 
+def approximate_potential_density(temp_c: float, psal_psu: float) -> float:
+    """
+    Compute approximate seawater density anomaly sigma_t (kg/m^3) at atmospheric pressure
+    using empirical polynomial equation of state.
+    """
+    # Polynomial approximation of sigma_t = rho(S,T,0) - 1000
+    t = temp_c
+    s = psal_psu
+    sigma_t = (
+        28.14
+        - 0.0735 * t
+        - 0.00469 * (t ** 2)
+        + (0.802 - 0.002 * t) * (s - 35.0)
+    )
+    return round(sigma_t, 4)
+
+
+def calculate_mixed_layer_depth(
+    observations: List[ArgoObservation],
+    ref_depth_m: float = 10.0,
+    temp_threshold_c: float = 0.2,
+    density_threshold: float = 0.03,
+) -> Dict[str, Any]:
+    """
+    Calculate Mixed Layer Depth (MLD) using:
+    1. Temperature criterion: depth where T = T(10m) - 0.2°C (de Boyer Montégut et al., 2004)
+    2. Density criterion: depth where sigma_t = sigma_t(10m) + 0.03 kg/m^3
+    """
+    valid_obs = [
+        obs for obs in sorted(observations, key=lambda x: x.depth_m)
+        if obs.temp_c is not None and obs.is_valid_measurement("TEMP")
+    ]
+    if len(valid_obs) < 2:
+        return {"mld_temperature_m": None, "mld_density_m": None, "method": "de_boyer_montegut_2004"}
+
+    # Find reference level closest to ref_depth_m
+    ref_obs = min(valid_obs, key=lambda x: abs(x.depth_m - ref_depth_m))
+    t_ref = ref_obs.temp_c
+    ref_d = ref_obs.depth_m
+
+    mld_temp = None
+    for obs in valid_obs:
+        if obs.depth_m > ref_d and obs.temp_c is not None:
+            if obs.temp_c <= (t_ref - temp_threshold_c):
+                mld_temp = round(obs.depth_m, 1)
+                break
+
+    # Density-based MLD if salinity is available
+    mld_dens = None
+    if ref_obs.psal_psu is not None:
+        dens_ref = approximate_potential_density(ref_obs.temp_c, ref_obs.psal_psu)
+        for obs in valid_obs:
+            if obs.depth_m > ref_d and obs.temp_c is not None and obs.psal_psu is not None:
+                dens_obs = approximate_potential_density(obs.temp_c, obs.psal_psu)
+                if dens_obs >= (dens_ref + density_threshold):
+                    mld_dens = round(obs.depth_m, 1)
+                    break
+
+    return {
+        "mld_temperature_m": mld_temp,
+        "mld_density_m": mld_dens,
+        "reference_depth_m": ref_d,
+        "reference_temperature_c": t_ref,
+        "method": "de_boyer_montegut_2004",
+    }
+
+
+def calculate_thermocline_gradient(observations: List[ArgoObservation]) -> Dict[str, Any]:
+    """
+    Compute vertical temperature gradient dT/dz (°C/m) across depth levels
+    and identify maximum thermocline gradient depth.
+    """
+    valid_obs = [
+        obs for obs in sorted(observations, key=lambda x: x.depth_m)
+        if obs.temp_c is not None and obs.is_valid_measurement("TEMP")
+    ]
+    if len(valid_obs) < 2:
+        return {"max_gradient_c_per_m": None, "thermocline_depth_m": None}
+
+    max_grad = 0.0
+    therm_depth = None
+
+    for i in range(len(valid_obs) - 1):
+        z1, t1 = valid_obs[i].depth_m, valid_obs[i].temp_c
+        z2, t2 = valid_obs[i + 1].depth_m, valid_obs[i + 1].temp_c
+        dz = abs(z2 - z1)
+        if dz > 0.5:
+            grad = abs(t2 - t1) / dz
+            if grad > max_grad:
+                max_grad = grad
+                therm_depth = round((z1 + z2) / 2.0, 1)
+
+    return {
+        "max_gradient_c_per_m": round(max_grad, 4) if therm_depth else None,
+        "thermocline_depth_m": therm_depth,
+    }
+
+
+def calculate_barrier_layer_thickness(observations: List[ArgoObservation]) -> Dict[str, Any]:
+    """
+    Calculate Salinity Barrier Layer Thickness (BLT):
+    BLT = max(0.0, Isothermal Layer Depth - Density Mixed Layer Depth)
+    Crucial metric for Bay of Bengal ocean stratification and cyclone heat energy.
+    """
+    mld_info = calculate_mixed_layer_depth(observations)
+    ild = mld_info.get("mld_temperature_m")
+    mld = mld_info.get("mld_density_m")
+
+    if ild is not None and mld is not None and ild >= mld:
+        blt = round(ild - mld, 1)
+    else:
+        blt = 0.0 if (ild is not None and mld is not None) else None
+
+    return {
+        "barrier_layer_thickness_m": blt,
+        "isothermal_layer_depth_m": ild,
+        "mixed_layer_depth_m": mld,
+        "has_barrier_layer": bool(blt and blt > 5.0),
+    }
+
+
+def detect_marine_heatwave_anomalies(
+    observations: List[ArgoObservation],
+    baseline_temp_c: float = 28.5,
+    anomaly_threshold_c: float = 1.5,
+) -> List[Dict[str, Any]]:
+    """
+    Identify upper-ocean (<50m) temperature observations indicating marine heatwave anomalies.
+    """
+    anomalies = []
+    for obs in observations:
+        if obs.depth_m <= 50.0 and obs.temp_c is not None and obs.is_valid_measurement("TEMP"):
+            anomaly = obs.temp_c - baseline_temp_c
+            if anomaly >= anomaly_threshold_c:
+                anomalies.append({
+                    "platform_id": obs.platform_id,
+                    "depth_m": obs.depth_m,
+                    "temperature_c": obs.temp_c,
+                    "baseline_temp_c": baseline_temp_c,
+                    "anomaly_c": round(anomaly, 2),
+                    "timestamp": obs.timestamp,
+                })
+    return anomalies
+
+
+def compute_oceanographic_indicators(observations: List[ArgoObservation]) -> Dict[str, Any]:
+    """
+    Compute all physical oceanographic indicators for a set of observations.
+    """
+    mld = calculate_mixed_layer_depth(observations)
+    therm = calculate_thermocline_gradient(observations)
+    blt = calculate_barrier_layer_thickness(observations)
+    mhw = detect_marine_heatwave_anomalies(observations)
+
+    return {
+        "mixed_layer_depth": mld,
+        "thermocline": therm,
+        "barrier_layer": blt,
+        "marine_heatwave_anomalies": mhw,
+    }
+
+
 def generate_data_summary(observations: List[ArgoObservation], parameters: List[str]) -> DataSummary:
     """
     Generate authoritative DataSummary object containing pre-computed metrics
@@ -225,9 +387,11 @@ def generate_data_summary(observations: List[ArgoObservation], parameters: List[
             depth_coverage={"min_depth_m": None, "max_depth_m": None},
             time_coverage={"earliest": None, "latest": None},
             parameter_summaries={},
+            indicators={},
         )
 
     stats = compute_statistics(observations, parameters)
+    indicators = compute_oceanographic_indicators(observations)
     floats = sorted(list({obs.platform_id for obs in observations}))
     depths = [obs.depth_m for obs in observations]
     timestamps = sorted([obs.timestamp for obs in observations])
@@ -253,4 +417,6 @@ def generate_data_summary(observations: List[ArgoObservation], parameters: List[
             "latest": timestamps[-1] if timestamps else None,
         },
         parameter_summaries=stats,
+        indicators=indicators,
     )
+

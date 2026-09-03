@@ -1,4 +1,4 @@
-﻿"""
+"""
 Representative sample ARGO oceanographic dataset for automated testing and offline development.
 
 Contains realistic physical and biogeochemical observation profiles across:
@@ -250,3 +250,7 @@ def generate_sample_observations() -> List[ArgoObservation]:
     )
 
     return observations
+
+
+# Alias for backward and testing compatibility
+get_sample_observations = generate_sample_observations
