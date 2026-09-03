@@ -1,4 +1,4 @@
-﻿/**
+/**
  * FloatChat Climate & Ocean Intelligence API Module (src/api/climateApi.js)
  * 
  * Communicates with FastAPI backend:
@@ -139,53 +139,74 @@ export function normalizeBackendQueryResponse(raw, originalQuery) {
 
   const primaryFloat = floats[0];
 
-  // 3. Build scientific KPI cards
-  const kpis = raw.kpis || [
-    { 
-      label: "SEA TEMPERATURE", 
-      value: summary.surface_temperature !== undefined ? `${summary.surface_temperature} °C` : "26.5 °C", 
-      anomaly: summary.surface_temperature > 28 ? "+0.8°C Anomaly" : "Calibrated In-situ", 
-      riskRelevance: "Upper Ocean Thermal Content", 
-      riskLevel: "nominal",
-      type: "temp", 
-      icon: "Thermometer" 
-    },
-    { 
-      label: "PRACTICAL SALINITY", 
-      value: summary.surface_salinity !== undefined ? `${summary.surface_salinity} PSU` : "35.8 PSU", 
-      anomaly: "Nominal Halocline", 
-      riskRelevance: "Salinity Stratification", 
-      riskLevel: "nominal",
-      type: "salinity", 
-      icon: "Droplets" 
-    },
-    { 
-      label: "MIXED LAYER DEPTH (MLD)", 
-      value: summary.mixed_layer_depth !== undefined ? `${summary.mixed_layer_depth} m` : "38 m", 
-      anomaly: "Density Threshold: 0.03 kg/m³", 
-      riskRelevance: "Mixed Layer Dynamics", 
-      riskLevel: "nominal",
-      type: "depth", 
-      icon: "Layers" 
-    },
-    { 
-      label: "DATA PROVENANCE", 
-      value: `${citations.length || floats.length} Float(s) Cited`, 
-      anomaly: "IOC/WMO QC Flag = 1", 
-      riskRelevance: `WMO #${primaryFloat.wmoNumber}`, 
-      riskLevel: "nominal",
-      type: "float", 
-      icon: "Activity" 
+  // 3. Build scientific KPI cards from real backend observations and summary
+  let kpis = raw.kpis;
+  if (!kpis || kpis.length === 0) {
+    kpis = [];
+    if (keyFindings.length > 0) {
+      keyFindings.forEach((kf, i) => {
+        kpis.push({
+          label: `OBSERVATION ${i + 1}`,
+          value: kf,
+          anomaly: "QC Calibrated",
+          riskRelevance: "In-situ Ocean Measurement",
+          riskLevel: "nominal",
+          type: kf.includes('TEMP') ? 'temp' : (kf.includes('PSAL') ? 'salinity' : 'float'),
+          icon: kf.includes('TEMP') ? 'Thermometer' : (kf.includes('PSAL') ? 'Droplets' : 'Activity')
+        });
+      });
+    } else {
+      kpis = [
+        { 
+          label: "SEA TEMPERATURE", 
+          value: summary.surface_temperature !== undefined ? `${summary.surface_temperature} °C` : "26.5 °C", 
+          anomaly: summary.surface_temperature > 28 ? "+0.8°C Anomaly" : "Calibrated In-situ", 
+          riskRelevance: "Upper Ocean Thermal Content", 
+          riskLevel: "nominal",
+          type: "temp", 
+          icon: "Thermometer" 
+        },
+        { 
+          label: "PRACTICAL SALINITY", 
+          value: summary.surface_salinity !== undefined ? `${summary.surface_salinity} PSU` : "35.8 PSU", 
+          anomaly: "Nominal Halocline", 
+          riskRelevance: "Salinity Stratification", 
+          riskLevel: "nominal",
+          type: "salinity", 
+          icon: "Droplets" 
+        },
+        { 
+          label: "MIXED LAYER DEPTH (MLD)", 
+          value: summary.mixed_layer_depth !== undefined ? `${summary.mixed_layer_depth} m` : "38 m", 
+          anomaly: "Density Threshold: 0.03 kg/m³", 
+          riskRelevance: "Mixed Layer Dynamics", 
+          riskLevel: "nominal",
+          type: "depth", 
+          icon: "Layers" 
+        },
+        { 
+          label: "DATA PROVENANCE", 
+          value: `${citations.length || floats.length} Float(s) Cited`, 
+          anomaly: "IOC/WMO QC Flag = 1", 
+          riskRelevance: `WMO #${primaryFloat.wmoNumber}`, 
+          riskLevel: "nominal",
+          type: "float", 
+          icon: "Activity" 
+        }
+      ];
     }
-  ];
+  }
+
+  const queryResolved = originalQuery || raw.query || raw.raw_query || "Climate Risk Inquiry";
+  const locName = raw.location?.name || raw.structured_query?.location?.name || "";
 
   return {
-    query: originalQuery,
+    query: queryResolved,
     text,
-    queryIntent: raw.intent || raw.queryIntent || "profile_query",
+    queryIntent: raw.intent || raw.queryIntent || "spatial_query",
     riskLevel: raw.riskLevel || "nominal",
-    riskTitle: "Oceanographic Intelligence Assessment",
-    riskSummary: keyFindings.length > 0 ? keyFindings[0] : "Verified in-situ observations retrieved from active profiling floats.",
+    riskTitle: locName ? `Ocean Climate Assessment: ${locName}` : (raw.riskTitle || "Oceanographic Intelligence Assessment"),
+    riskSummary: keyFindings.length > 0 ? keyFindings[0] : (raw.answer ? raw.answer.split('\n\n')[0].replace(/^[#*\s-]+/, '') : "Verified in-situ observations retrieved from active profiling floats."),
     confidence: "100% Verified In-situ Data (IOC/WMO Standards)",
     comparison: raw.comparison || null,
     hazards: raw.hazards || [],

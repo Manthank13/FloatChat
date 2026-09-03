@@ -208,8 +208,8 @@ export default function AIAnalysis({
 
       {/* 2. Visual Investigation Pipeline (Query -> Observation -> Insight -> Risk -> Resilience) */}
       <InvestigationFlow
-        query={typeof message.query === 'string' ? message.query : ""}
-        observationTitle={typeof message.kpis?.[0]?.value === 'string' || typeof message.kpis?.[0]?.value === 'number' ? `SST ${message.kpis[0].value} (${message.kpis[0].anomaly || 'Observed'})` : "In-situ Observation Verified"}
+        query={typeof message.query === 'string' && message.query.trim() ? message.query : (message.userQuery || message.failedQuery || "Target Climate Risk Inquiry")}
+        observationTitle={typeof message.kpis?.[0]?.value === 'string' || typeof message.kpis?.[0]?.value === 'number' ? `${message.kpis[0].label || 'Observation'}: ${message.kpis[0].value}` : "In-situ Observation Verified"}
         insightTitle={typeof message.kpis?.[1]?.riskRelevance === 'string' ? message.kpis[1].riskRelevance : "Subsurface Barrier Layer & Heat Retention"}
         riskTitle={typeof message.riskTitle === 'string' ? message.riskTitle : "Regional Climate Risk Assessment"}
         resilienceTitle={typeof message.hazards?.[0] === 'string' ? message.hazards[0] : (message.hazards?.[0]?.title || "Coastal Resilience & Preparedness Guidelines")}
