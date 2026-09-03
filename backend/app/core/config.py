@@ -27,6 +27,14 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
+    # AI / LLM Configuration
+    GEMINI_API_KEY: Optional[str] = None
+    AI_LLM_PROVIDER: str = "mock"
+    AI_MODEL_NAME: str = "gemini-2.5-flash"
+    AI_TEMPERATURE: float = 0.0
+    AI_TIMEOUT_SECONDS: float = 15.0
+    AI_FALLBACK_TO_DETERMINISTIC: bool = True
+
     # CORS configuration
     CORS_ORIGINS: Union[List[str], str] = [
         "http://localhost:3000",

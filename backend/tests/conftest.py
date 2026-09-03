@@ -7,13 +7,15 @@ from fastapi.testclient import TestClient
 # Ensure app package is importable from tests directory
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-# Ensure testing environment is active during tests so MongoDB Atlas is never contacted
+# Ensure testing environment is active during tests so MongoDB Atlas and external APIs are never contacted
 os.environ["ENVIRONMENT"] = "testing"
 os.environ["DATA_PROVIDER"] = "mock"
+os.environ["AI_LLM_PROVIDER"] = "mock"
 
 from app.core.config import settings
 settings.ENVIRONMENT = "testing"
 settings.DATA_PROVIDER = "mock"
+settings.AI_LLM_PROVIDER = "mock"
 
 from app.db.repositories.chat_message import ChatMessageRepository
 from app.db.repositories.chat_session import ChatSessionRepository

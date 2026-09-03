@@ -17,8 +17,10 @@ class MockArgoDataSource(ArgoDataSource):
             {"id": "MOCK6902747", "lat": 25.5, "lon": -75.5},
             {"id": "MOCK6902748", "lat": 26.0, "lon": -76.0},
             {"id": "2902741", "lat": 13.0827, "lon": 80.2707},
+            {"id": "2903334", "lat": 13.0827, "lon": 80.2707},
             {"id": "2902742", "lat": 15.0, "lon": 65.0},
             {"id": "2902743", "lat": 0.0, "lon": 75.0},
+            {"id": "5906432", "lat": 9.9312, "lon": 76.2673},
         ]
 
     def _generate_mock_profile(

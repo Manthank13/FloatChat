@@ -32,6 +32,12 @@ from app.services.analysis import ScientificAnalysisService
 from app.services.base import ArgoDataSource
 from app.services.factory import get_argo_data_source
 from app.services.query import ObservationQueryService
+from app.ai.adapter import BackendArgoRetriever
+from app.ai.engine import FloatChatAIEngine
+from app.ai.retrieval_models import ArgoObservation, DataSummary, RetrievalResult
+from app.db.repositories.chat_message import ChatMessageRepository
+from app.db.repositories.chat_session import ChatSessionRepository
+from app.models.chat import ChatRole
 
 # ==============================================================================
 # Regional Bounding Boxes & Reference Coordinates (Indian Ocean & Global)
@@ -79,10 +85,24 @@ class FrontendAdapterService:
         query_service: Optional[ObservationQueryService] = None,
         analysis_service: Optional[ScientificAnalysisService] = None,
         data_source: Optional[ArgoDataSource] = None,
+        ai_engine: Optional[FloatChatAIEngine] = None,
+        chat_session_repo: Optional[ChatSessionRepository] = None,
+        chat_message_repo: Optional[ChatMessageRepository] = None,
     ):
         self.data_source = data_source or get_argo_data_source()
         self.query_service = query_service or ObservationQueryService(data_source=self.data_source)
         self.analysis_service = analysis_service or ScientificAnalysisService(data_source=self.data_source)
+        self.ai_retriever = BackendArgoRetriever(
+            data_source=self.data_source,
+            query_service=self.query_service,
+            analysis_service=self.analysis_service,
+        )
+        self.ai_engine = ai_engine or FloatChatAIEngine(
+            data_source=self.data_source,
+            retriever=self.ai_retriever,
+        )
+        self.chat_session_repo = chat_session_repo or ChatSessionRepository()
+        self.chat_message_repo = chat_message_repo or ChatMessageRepository()
 
     def _resolve_region(self, request: FrontendQueryRequest) -> str:
         """Determines target ocean region from context or query text."""
@@ -105,10 +125,36 @@ class FrontendAdapterService:
         request: FrontendQueryRequest,
         current_user: Optional[UserResponse] = None,
     ) -> FrontendQueryResponse:
-        """Processes frontend query, retrieving observations and building structured risk & telemetry response."""
-        region_key = self._resolve_region(request)
-        region_cfg = REGION_CONFIGS[region_key]
+        """Processes frontend query using the AI reasoning engine and existing backend services."""
+        # 1. Chat Persistence: Record user query if conversation_id is supplied
+        user_id_val = current_user.id if current_user else "guest"
+        if request.conversation_id:
+            try:
+                await self.chat_message_repo.create_message(
+                    session_id=request.conversation_id,
+                    user_id=user_id_val,
+                    role="user",
+                    content=request.query,
+                )
+            except Exception as exc:
+                logger.warning(f"Chat persistence error for user message: {exc}")
 
+        # 2. AI Understanding: Parse natural-language intent and domain entities
+        parsed_sq = await self.ai_engine.parse_query_async(
+            request.query,
+            use_llm=(self.ai_engine.config.llm_provider.lower() != "mock"),
+        )
+
+        region_key = self._resolve_region(request)
+        # If AI parsed location matches known regions, refine region_key
+        if parsed_sq.location and parsed_sq.location.name:
+            loc_lower = parsed_sq.location.name.lower()
+            for rk, rcfg in REGION_CONFIGS.items():
+                if loc_lower in rk or loc_lower in rcfg["name"].lower():
+                    region_key = rk
+                    break
+
+        region_cfg = REGION_CONFIGS[region_key]
         lat = region_cfg["latitude"]
         lon = region_cfg["longitude"]
         loc_name = region_cfg["name"]
@@ -302,24 +348,74 @@ class FrontendAdapterService:
             ),
         ]
 
-        insights = [
-            (
-                f"Surface thermal state: {temp_val_str} ({temp_status}) represents the active upper ocean boundary layer."
-                if surface_temp is not None
-                else "Surface temperature observation unavailable for this profile."
-            ),
-            (
-                f"Mixed Layer Depth calculated at {mld_val_str} using the physical ΔT=0.2°C surface offset criterion."
-                if mld_val is not None
-                else "Mixed Layer Depth could not be resolved from available discrete depth levels."
-            ),
-            "Risk-relevant indicator: In-situ oceanographic measurements provide observational evidence of regional water-column heat and stratification.",
-        ]
+        # Build RetrievalResult for AI synthesis grounded in real observations
+        matched_obs_list: List[ArgoObservation] = []
+        for pt in frontend_profile_points:
+            matched_obs_list.append(
+                ArgoObservation(
+                    platform_id=primary_float_id,
+                    latitude=primary_lat,
+                    longitude=primary_lon,
+                    timestamp=primary_time or datetime.now(timezone.utc).isoformat(),
+                    pressure_dbar=pt.pressure or pt.depth,
+                    depth_m=pt.depth,
+                    temp_c=pt.temperature,
+                    psal_psu=pt.salinity,
+                    temp_qc=1 if records_qc_passed else 2,
+                    psal_qc=1 if records_qc_passed else 2,
+                    data_source=data_provider_name,
+                )
+            )
 
+        ai_retrieval_res = RetrievalResult(
+            query_raw=request.query,
+            intent=parsed_sq.intent.value if hasattr(parsed_sq.intent, "value") else str(parsed_sq.intent),
+            parameters_requested=[p.value for p in parsed_sq.parameters],
+            total_matched_observations=len(matched_obs_list),
+            matched_observations=matched_obs_list,
+            matched_platforms=[primary_float_id],
+            summary=DataSummary(
+                number_of_observations=len(matched_obs_list),
+                floats_represented=[primary_float_id],
+                mean_temperature=round(surface_temp, 2) if surface_temp is not None else None,
+                mean_salinity=round(surface_sal, 2) if surface_sal is not None else None,
+                depth_coverage={"min_depth_m": 0.0, "max_depth_m": max_depth},
+                time_coverage={"earliest": primary_time, "latest": primary_time},
+            ),
+            summary_statistics={
+                "TEMP": {"mean": round(surface_temp, 2) if surface_temp is not None else None, "min": round(deep_temp, 2) if deep_temp is not None else None, "max": round(surface_temp, 2) if surface_temp is not None else None},
+                "PSAL": {"mean": round(surface_sal, 2) if surface_sal is not None else None, "min": round(surface_sal, 2) if surface_sal is not None else None, "max": round(surface_sal, 2) if surface_sal is not None else None},
+            },
+            spatial_info={"location_name": loc_name, "latitude": primary_lat, "longitude": primary_lon},
+            depth_info={"depth_min": 0.0, "depth_max": max_depth},
+            data_source=data_provider_name,
+            is_empty=len(matched_obs_list) == 0,
+        )
+
+        # Synthesize AI-grounded response
+        ai_resp = await self.ai_engine.synthesize_response_async(
+            parsed_sq,
+            ai_retrieval_res,
+            use_llm=(self.ai_engine.config.llm_provider.lower() != "mock"),
+        )
+
+        # Chat Persistence: Record assistant message if conversation_id provided
+        if request.conversation_id:
+            try:
+                await self.chat_message_repo.create_message(
+                    session_id=request.conversation_id,
+                    user_id=user_id_val,
+                    role="assistant",
+                    content=ai_resp.answer,
+                    metadata={"float_id": primary_float_id, "intent": parsed_sq.intent.value},
+                )
+            except Exception as exc:
+                logger.warning(f"Chat persistence error for assistant message: {exc}")
+
+        # Assemble contract markdown ensuring full structured sections and observational grounding
         text_markdown = (
             f"### Observation & Environmental Signals: {loc_name}\n\n"
-            f"In-situ telemetry from **ARGO Float {primary_float_id}** (WMO: {primary_float_id}) reveals "
-            f"**Sea Surface Temperature (SST) at {temp_val_str}** with **surface salinity at {sal_val_str}**.\n\n"
+            f"{ai_resp.answer}\n\n"
             f"#### 1. Observation\n"
             f"- **Surface Thermal State**: SST measured at {temp_val_str} ({temp_status}).\n"
             f"- **Salinity Stratification**: Surface salinity measured at {sal_val_str}.\n"
@@ -336,6 +432,26 @@ class FrontendAdapterService:
             f"#### 4. Observational Evidence\n"
             f"- Verified in-situ CTD measurements recorded by Float **{primary_float_id}** via {data_provider_name}."
         )
+
+        insights = ai_resp.key_findings if ai_resp.key_findings else [
+            (
+                f"Surface thermal state: {temp_val_str} ({temp_status}) represents the active upper ocean boundary layer."
+                if surface_temp is not None
+                else "Surface temperature observation unavailable for this profile."
+            ),
+            (
+                f"Mixed Layer Depth calculated at {mld_val_str} using the physical ΔT=0.2°C surface offset criterion."
+                if mld_val is not None
+                else "Mixed Layer Depth could not be resolved from available discrete depth levels."
+            ),
+            "Risk-relevant indicator: In-situ oceanographic measurements provide observational evidence of regional water-column heat and stratification.",
+        ]
+
+        follow_ups = ai_resp.follow_up_suggestions if ai_resp.follow_up_suggestions else [
+            f"Explain the environmental factors relevant to ocean heat in {loc_name}",
+            "What evidence suggests halocline stratification or barrier layer behavior?",
+            "Compare environmental conditions between the Arabian Sea and Bay of Bengal",
+        ]
 
         return FrontendQueryResponse(
             query=request.query,
@@ -374,11 +490,7 @@ class FrontendAdapterService:
                 quality="RTQC PASS" if records_qc_passed else "RTQC Evaluated",
                 cycle=float_cycle,
             ),
-            followUps=[
-                f"Explain the environmental factors relevant to ocean heat in {loc_name}",
-                "What evidence suggests halocline stratification or barrier layer behavior?",
-                "Compare environmental conditions between the Arabian Sea and Bay of Bengal",
-            ],
+            followUps=follow_ups,
         )
 
     async def get_fleet_floats(
