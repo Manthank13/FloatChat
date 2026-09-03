@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+﻿from typing import List, Optional, Union
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -26,6 +26,15 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "floatchat-dev-secret-key-replace-in-production-123456789"
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+    # AI / LLM Configuration
+    OPENAI_API_KEY: Optional[str] = None
+    GEMINI_API_KEY: Optional[str] = None
+    AI_LLM_PROVIDER: str = "mock"
+    AI_MODEL_NAME: str = "gpt-4o-mini"
+    AI_TEMPERATURE: float = 0.0
+    AI_TIMEOUT_SECONDS: float = 15.0
+    AI_FALLBACK_TO_DETERMINISTIC: bool = True
 
     # CORS configuration
     CORS_ORIGINS: Union[List[str], str] = [

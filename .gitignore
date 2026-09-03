@@ -1,15 +1,18 @@
-# =========================
+﻿# =========================
 # Python
 # =========================
 
 __pycache__/
 *.py[cod]
 *.pyo
+*$py.class
+*.so
 
 # Virtual environments
 .venv/
 venv/
 env/
+ENV/
 
 # =========================
 # Environment variables
@@ -41,6 +44,8 @@ build/
 
 .vscode/
 .idea/
+*.swp
+*.swo
 
 # =========================
 # Operating System
@@ -79,6 +84,7 @@ temp/
 
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
 .coverage
 htmlcov/
 

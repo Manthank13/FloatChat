@@ -1,10 +1,12 @@
-from contextlib import asynccontextmanager
+﻿from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_swagger_ui_html
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.api.frontend import router as frontend_router
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.exceptions import (
@@ -13,7 +15,11 @@ from app.core.exceptions import (
     validation_exception_handler,
 )
 from app.core.logging import logger
+from app.db.repositories.chat_message import ChatMessageRepository
+from app.db.repositories.chat_session import ChatSessionRepository
+from app.db.repositories.saved_query import SavedQueryRepository
 from app.db.repositories.user import UserRepository
+from app.db.repositories.user_preferences import UserPreferencesRepository
 from app.db.session import MongoDBManager
 from app.middleware.request_id import RequestIDMiddleware
 
@@ -26,8 +32,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Initialize MongoDB connection if MONGODB_URI configured
     try:
         await MongoDBManager.connect()
-        user_repo = UserRepository()
-        await user_repo.create_indexes()
+        await UserRepository().create_indexes()
+        await ChatSessionRepository().create_indexes()
+        await ChatMessageRepository().create_indexes()
+        await SavedQueryRepository().create_indexes()
+        await UserPreferencesRepository().create_indexes()
     except Exception as exc:
         logger.warning(f"MongoDB startup connection warning: {exc}")
 
@@ -74,6 +83,15 @@ def create_application() -> FastAPI:
 
     # Include API Routers
     app.include_router(api_router, prefix=settings.API_V1_STR)
+    app.include_router(frontend_router, prefix="/api", tags=["Frontend Product Contract"])
+
+    @app.get("/docs", include_in_schema=False)
+    async def get_swagger_docs():
+        return get_swagger_ui_html(openapi_url=f"{settings.API_V1_STR}/openapi.json", title=settings.PROJECT_NAME)
+
+    @app.get("/openapi.json", include_in_schema=False)
+    async def get_root_openapi():
+        return app.openapi()
 
     return app
 
