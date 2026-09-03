@@ -5,8 +5,19 @@
  * and unified error normalization.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-const DEFAULT_TIMEOUT_MS = 15000;
+const resolveApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL.replace(/\/+$/, '');
+  }
+  // If running in browser on deployed Vercel domain, connect directly to production Render backend
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return 'https://floatchat-2ckd.onrender.com';
+  }
+  return 'http://localhost:8000';
+};
+
+const API_BASE_URL = resolveApiBaseUrl();
+const DEFAULT_TIMEOUT_MS = 25000;
 
 /**
  * Custom API Error with structured status and details

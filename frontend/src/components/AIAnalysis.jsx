@@ -167,7 +167,11 @@ export default function AIAnalysis({
         <div className="analysis-source-info font-mono">
           <span className="source-dot"></span>
           <span className="source-label">
-            {message.source || (message.isMock ? "CLIMATE AI SYNTHESIS (IN-SITU GROUND TRUTH)" : "FASTAPI CLIMATE AI")}
+            {typeof message.source === 'string' 
+              ? message.source 
+              : (message.source?.provider 
+                  ? `${message.source.provider}${message.source.quality ? ` • ${message.source.quality}` : ''}`
+                  : (message.isMock ? "CLIMATE AI SYNTHESIS (IN-SITU GROUND TRUTH)" : "FASTAPI CLIMATE AI"))}
           </span>
           <span className="source-separator">•</span>
           <span className="source-time">{message.timestamp || 'Just now'}</span>
@@ -204,11 +208,11 @@ export default function AIAnalysis({
 
       {/* 2. Visual Investigation Pipeline (Query -> Observation -> Insight -> Risk -> Resilience) */}
       <InvestigationFlow
-        query={message.query}
-        observationTitle={message.kpis?.[0]?.value ? `SST ${message.kpis[0].value} (${message.kpis[0].anomaly || 'Observed'})` : "In-situ Observation Verified"}
-        insightTitle={message.kpis?.[1]?.riskRelevance || "Subsurface Barrier Layer & Heat Retention"}
-        riskTitle={message.riskTitle || "Regional Climate Risk Assessment"}
-        resilienceTitle={message.hazards?.[0]?.title || "Coastal Resilience & Preparedness Guidelines"}
+        query={typeof message.query === 'string' ? message.query : ""}
+        observationTitle={typeof message.kpis?.[0]?.value === 'string' || typeof message.kpis?.[0]?.value === 'number' ? `SST ${message.kpis[0].value} (${message.kpis[0].anomaly || 'Observed'})` : "In-situ Observation Verified"}
+        insightTitle={typeof message.kpis?.[1]?.riskRelevance === 'string' ? message.kpis[1].riskRelevance : "Subsurface Barrier Layer & Heat Retention"}
+        riskTitle={typeof message.riskTitle === 'string' ? message.riskTitle : "Regional Climate Risk Assessment"}
+        resilienceTitle={typeof message.hazards?.[0] === 'string' ? message.hazards[0] : (message.hazards?.[0]?.title || "Coastal Resilience & Preparedness Guidelines")}
       />
 
       {/* 3. ADAPTIVE: Dual-Basin Regional Comparison (If comparison query) */}

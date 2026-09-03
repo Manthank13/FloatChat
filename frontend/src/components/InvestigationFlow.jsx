@@ -67,7 +67,9 @@ export default function InvestigationFlow({
                   <span className="flow-node-tag font-mono" style={{ color: step.color }}>
                     STEP {step.num} • {step.tag}
                   </span>
-                  <span className="flow-node-title">{step.title}</span>
+                  <span className="flow-node-title">
+                    {typeof step.title === 'string' ? step.title : (step.title?.title || step.title?.name || JSON.stringify(step.title) || "")}
+                  </span>
                 </div>
               </div>
               {idx < steps.length - 1 && (

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import ChatMessage from './ChatMessage';
+import ChatErrorBoundary from './ChatErrorBoundary';
 import LoadingState from './LoadingState';
 import { Radio, Droplets, Layers } from 'lucide-react';
 
@@ -50,15 +51,16 @@ export default function ChatWindow({
       ) : (
         <div className="messages-stream">
           {messages.map((msg) => (
-            <ChatMessage
-              key={msg.id}
-              message={msg}
-              onSelectFloat={onSelectFloat}
-              onSendFollowUp={onSendFollowUp}
-              onNavigate={onNavigate}
-              onRetryQuery={onRetryQuery}
-              onInspectSignal={onInspectSignal}
-            />
+            <ChatErrorBoundary key={msg.id}>
+              <ChatMessage
+                message={msg}
+                onSelectFloat={onSelectFloat}
+                onSendFollowUp={onSendFollowUp}
+                onNavigate={onNavigate}
+                onRetryQuery={onRetryQuery}
+                onInspectSignal={onInspectSignal}
+              />
+            </ChatErrorBoundary>
           ))}
 
           {isLoading && (
