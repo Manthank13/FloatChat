@@ -1,4 +1,4 @@
-﻿"""
+"""
 Conversational Session Management and Multi-Turn Context Resolution for FloatChat.
 """
 
@@ -73,12 +73,18 @@ class ConversationSession(BaseModel):
         prev = self.last_structured_query
         merged = new_query.model_copy(deep=True) if hasattr(new_query, "model_copy") else copy.deepcopy(new_query)
 
-        # 1. Inherit location if missing in new query and not a platform-specific or comparison query
+        # 1. Inherit location ONLY if new query is an explicit elliptical follow-up and not introducing a new spatial context
+        lower_raw = (new_query.raw_query or "").lower()
+        has_spatial_indicators = any(w in lower_raw for w in ["near", "in ", "around", "off ", "from ", "between", "vs", "versus"])
+        is_follow_up_phrase = any(w in lower_raw for w in ["what about", "how about", "instead", "and at", "and for", "same location", "there", "at that depth", "same region"])
+
         if merged.location is None and merged.platform_id is None and prev.location is not None:
-            if not merged.comparison:
-                merged.location = prev.location.model_copy(deep=True) if hasattr(prev.location, "model_copy") else copy.deepcopy(prev.location)
-                if merged.radius_km is None:
-                    merged.radius_km = prev.radius_km
+            if not merged.comparison and not has_spatial_indicators:
+                # Do not inherit location for standalone profile/depth queries without follow-up keywords
+                if is_follow_up_phrase:
+                    merged.location = prev.location.model_copy(deep=True) if hasattr(prev.location, "model_copy") else copy.deepcopy(prev.location)
+                    if merged.radius_km is None:
+                        merged.radius_km = prev.radius_km
 
         # 2. Inherit parameters if unspecified in new query
         if not merged.parameters and prev.parameters:

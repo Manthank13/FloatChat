@@ -59,27 +59,27 @@ class DeterministicQueryParser(BaseQueryParser):
     ]
 
     # Regex patterns for Depth / Pressure
-    # e.g., "at 100 meters", "at 100m", "at 200m", "100 dbar", "depth 150 m", "at 200 m"
+    # e.g., "at 100 meters", "at 500 metres", "at 100m", "at 200m", "100 dbar", "depth 150 m", "at 200 m"
     EXACT_DEPTH_PATTERN = re.compile(
-        r"(?:at|depth\s*(?:of)?|level\s*(?:of)?)\s*(\d+(?:\.\d+)?)\s*(?:m\b|meters?\b|dbar\b|decibars?\b)",
+        r"(?:at|depth\s*(?:of)?|level\s*(?:of)?)\s*(\d+(?:\.\d+)?)\s*(?:m\b|meters?\b|metres?\b|dbar\b|decibars?\b)",
         re.IGNORECASE,
     )
     
-    # Standalone depth e.g., "at 200m", "200m depth"
+    # Standalone depth e.g., "at 200m", "200m depth", "500 metres depth"
     STANDALONE_DEPTH_PATTERN = re.compile(
-        r"\b(\d+(?:\.\d+)?)\s*(?:m|meters|dbar|decibars)\s+depth\b",
+        r"\b(\d+(?:\.\d+)?)\s*(?:m|meters?|metres?|dbar|decibars?)\s+depth\b",
         re.IGNORECASE,
     )
 
-    # Depth range e.g., "between 0 and 500 meters", "between 100m and 500m", "from 50m to 200m", "0 - 500 meters", "0 to 500m"
+    # Depth range e.g., "between 0 and 500 meters", "between 100m and 500m", "from 50m to 200m", "0 - 500 metres", "0 to 500m"
     DEPTH_RANGE_PATTERN = re.compile(
-        r"(?:between|from)?\s*(\d+(?:\.\d+)?)\s*(?:m|meters?|dbar)?\s*(?:to|and|-)\s*(\d+(?:\.\d+)?)\s*(?:m\b|meters?\b|dbar\b|decibars?\b)",
+        r"(?:between|from)?\s*(\d+(?:\.\d+)?)\s*(?:m|meters?|metres?|dbar)?\s*(?:to|and|-)\s*(\d+(?:\.\d+)?)\s*(?:m\b|meters?\b|metres?\b|dbar\b|decibars?\b)",
         re.IGNORECASE,
     )
 
-    # Depth comparison e.g., "compare ... at 100m and 500m", "at 100m vs 500m"
+    # Depth comparison e.g., "compare ... at 100m and 500m", "at 100m vs 500m", "100 metres vs 500 metres"
     DEPTH_COMPARISON_PATTERN = re.compile(
-        r"(?:at\s+)?(\d+(?:\.\d+)?)\s*(?:m\b|meters?\b|dbar\b)?\s*(?:and|vs|versus|to)\s*(\d+(?:\.\d+)?)\s*(?:m\b|meters?\b|dbar\b)",
+        r"(?:at\s+)?(\d+(?:\.\d+)?)\s*(?:m\b|meters?\b|metres?\b|dbar\b)?\s*(?:and|vs|versus|to)\s*(\d+(?:\.\d+)?)\s*(?:m\b|meters?\b|metres?\b|dbar\b)",
         re.IGNORECASE,
     )
 
@@ -349,6 +349,36 @@ class DeterministicQueryParser(BaseQueryParser):
                     radius_km=explicit_radius or loc_info.get("default_radius_km", 50.0),
                 )
                 return loc_filter, explicit_radius
+
+        # 4. Check for candidate spatial entity in query (e.g. "near Coorg", "around Bangalore", "in Delhi", "off Seattle")
+        candidate_match = re.search(r"\b(?:near|around|in|off|close to|vicinity of)\s+([A-Za-z][A-Za-z\s]{1,30})\b", original_query, re.IGNORECASE)
+        if candidate_match:
+            candidate_raw = candidate_match.group(1).strip()
+            # Exclude common non-location phrases, parameters, and time words
+            stop_phrases = {
+                "the", "a", "an", "the ocean", "the sea", "the bay", "the surface", "the water", "the deep",
+                "argo", "floatchat", "data", "observations", "floats", "float", "depth", "all levels",
+                "temperature", "salinity", "pressure", "oxygen", "chlorophyll", "nitrate", "ph",
+                "meters", "metres", "dbar", "decibars", "january", "february", "march", "april", "may",
+                "june", "july", "august", "september", "october", "november", "december",
+                "summer", "winter", "monsoon", "spring", "autumn", "last month", "last year", "today"
+            }
+            cand_clean = candidate_raw.lower()
+            # Strip trailing punctuation or question mark
+            cand_clean = re.sub(r"[?.,!].*$", "", cand_clean).strip()
+            candidate_title = re.sub(r"[?.,!].*$", "", candidate_raw).strip().title()
+
+            if cand_clean and cand_clean not in stop_phrases and not any(p in cand_clean for p in ["meter", "metre", "dbar"]):
+                return (
+                    LocationFilter(
+                        name=candidate_title,
+                        latitude=None,
+                        longitude=None,
+                        bounding_box=None,
+                        radius_km=explicit_radius or 50.0,
+                    ),
+                    explicit_radius,
+                )
 
         return None, explicit_radius
 

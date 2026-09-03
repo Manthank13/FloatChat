@@ -266,7 +266,41 @@ class DeterministicResponseSynthesizer(BaseResponseSynthesizer):
                 is_empty=True,
             )
 
-        # 1. Handle Empty or Zero Results
+        # 1. Handle Unmapped / Terrestrial Non-Oceanic Locations (e.g. Coorg, Denver, Delhi)
+        if query.location and query.location.latitude is None and query.location.longitude is None and query.location.bounding_box is None:
+            loc_name = query.location.name
+            answer = (
+                f"### Non-Oceanic / Terrestrial Location: **{loc_name}**\n\n"
+                f"**{loc_name}** is an inland or terrestrial location. ARGO profiling floats operate exclusively in global open oceans, marginal seas, and deep water columns (>1000m depth) to record high-resolution Conductivity-Temperature-Depth (CTD) and biogeochemical profiles.\n\n"
+                f"**Why No In-Situ Profiles Exist Here:**\n"
+                f"- ARGO floats require deep marine water columns to execute their 10-day descent/ascent cycles (descending to 2,000m and returning to the surface).\n"
+                f"- In-situ observations are not recorded for terrestrial or inland mountain regions.\n\n"
+                f"*Tip: To explore real oceanographic observations, try querying nearby marine basins or coastal sectors such as the **Arabian Sea**, **Bay of Bengal**, **Indian Ocean**, **Mumbai**, **Goa**, or **Mangalore**.*"
+            )
+            key_findings = [f"'{loc_name}' is a terrestrial location without marine ARGO coverage."]
+            return FloatChatResponse(
+                query=query.raw_query,
+                intent=query.intent,
+                answer=answer,
+                key_findings=key_findings,
+                structured_query=query,
+                retrieval_result=result,
+                data_summary=result.summary,
+                citations=[],
+                chart_data=None,
+                map_markers=[],
+                follow_up_suggestions=[
+                    "What is the salinity near Mumbai?",
+                    "Show ARGO observations in the Bay of Bengal",
+                    "What is the ocean temperature in the Arabian Sea?",
+                    "What is the salinity near Mangalore?"
+                ],
+                confidence=0.9,
+                data_source="NONE",
+                is_empty=True,
+            )
+
+        # 2. Handle Empty or Zero Results
         if result.is_empty:
             loc_str = f" near **{query.location.name}**" if query.location and query.location.name else ""
             depth_str = f" at **{query.depth.target_depth}m**" if query.depth and query.depth.target_depth else ""
@@ -297,13 +331,16 @@ class DeterministicResponseSynthesizer(BaseResponseSynthesizer):
                 is_empty=True,
             )
 
-        # 2. Handle Comparison Queries
+        # 3. Handle Comparison Queries
         if query.intent == QueryIntent.COMPARISON_QUERY or query.comparison:
-            target_a = query.comparison.target_a if query.comparison else "Region A"
-            target_b = query.comparison.target_b if query.comparison else "Region B"
+            target_a = query.comparison.target_a if query.comparison and query.comparison.target_a else "Region A"
+            target_b = query.comparison.target_b if query.comparison and query.comparison.target_b else "Region B"
+            count_a = result.spatial_info.get("count_a", 0) if result.spatial_info else 0
+            count_b = result.spatial_info.get("count_b", 0) if result.spatial_info else 0
+            
             lines = [
                 f"### Oceanographic Comparison: **{target_a}** vs **{target_b}**\n",
-                f"Retrieved **{result.total_matched_observations}** oceanographic observations across {len(result.matched_platforms)} ARGO float(s).",
+                f"Retrieved **{result.total_matched_observations}** oceanographic observations across {len(result.matched_platforms)} ARGO float(s) ({target_a}: {count_a} levels, {target_b}: {count_b} levels).",
                 "\n### Summary Statistics:",
             ]
             for p, s in result.summary_statistics.items():
@@ -311,17 +348,17 @@ class DeterministicResponseSynthesizer(BaseResponseSynthesizer):
                 lines.append(f"- **{p}:** Overall mean = **{s.get('mean')} {unit}** (Range: {s.get('min')} to {s.get('max')} {unit})")
 
             lines.append("\n### Physical Dynamics:")
-            if "Arabian Sea" in query.raw_query and "Bay of Bengal" in query.raw_query:
+            if ("Arabian Sea" in query.raw_query or "Mumbai" in query.raw_query) and ("Bay of Bengal" in query.raw_query or "Chennai" in query.raw_query):
                 lines.append(
-                    "The **Arabian Sea** exhibits higher salinity (typically 35.5–36.8 PSU) due to strong net evaporation and arid winds, "
-                    "whereas the **Bay of Bengal** has significantly fresher upper layers (31.5–34.0 PSU) driven by massive river discharge "
+                    "The **Arabian Sea** (west coast / Mumbai sector) exhibits higher salinity (typically 35.5–36.8 PSU) due to strong net evaporation and arid atmospheric forcing, "
+                    "whereas the **Bay of Bengal** (east coast / Chennai sector) maintains significantly fresher upper layers (31.5–34.0 PSU) driven by massive river discharge "
                     "(Ganges, Brahmaputra) and heavy monsoon rainfall. This difference forms a prominent salinity barrier layer in the Bay of Bengal."
                 )
             else:
                 lines.append("Regional gradients in sea surface temperature and salinity drive distinct thermohaline circulation cells.")
 
             key_findings = [
-                f"Compared {target_a} and {target_b} across {len(result.matched_platforms)} float(s).",
+                f"Compared {target_a} ({count_a} levels) and {target_b} ({count_b} levels) across {len(result.matched_platforms)} float(s).",
                 f"Retrieved {result.total_matched_observations} depth observations."
             ]
 
@@ -342,9 +379,11 @@ class DeterministicResponseSynthesizer(BaseResponseSynthesizer):
                 is_empty=False,
             )
 
-        # 3. Standard Profile / Spatial / Float Query Markdown Narrative
+        # 4. Standard Profile / Spatial / Float Query Markdown Narrative
         stats = result.summary_statistics
-        loc_name = query.location.name if query.location and query.location.name else f"Coordinates ({result.matched_observations[0].latitude:.2f}°N, {result.matched_observations[0].longitude:.2f}°E)"
+        loc_name = query.location.name if query.location and query.location.name else (
+            f"Coordinates ({result.matched_observations[0].latitude:.2f}°N, {result.matched_observations[0].longitude:.2f}°E)" if result.matched_observations else "Global Array"
+        )
         platform_str = ", ".join(f"`{p}`" for p in result.matched_platforms)
 
         key_findings = []
@@ -357,15 +396,18 @@ class DeterministicResponseSynthesizer(BaseResponseSynthesizer):
         lines = []
         if query.depth and query.depth.target_depth is not None:
             depth_val = query.depth.target_depth
-            first_obs = result.matched_observations[0]
+            first_obs = result.matched_observations[0] if result.matched_observations else None
             val_strs = []
-            if first_obs.psal_psu is not None:
+            if first_obs and first_obs.psal_psu is not None:
                 val_strs.append(f"practical salinity is **{first_obs.psal_psu:.2f} PSU**")
-            if first_obs.temp_c is not None:
+            if first_obs and first_obs.temp_c is not None:
                 val_strs.append(f"in-situ temperature is **{first_obs.temp_c:.2f}°C**")
             
             summary_val = ", ".join(val_strs) if val_strs else "measurements retrieved"
-            lines.append(f"Near **{loc_name}** at a depth of **{depth_val:.0f} meters**, the {summary_val}, as observed by ARGO float {platform_str}.")
+            if query.location:
+                lines.append(f"Near **{loc_name}** at a depth of **{depth_val:.0f} meters**, the {summary_val}, as observed by ARGO float {platform_str}.")
+            else:
+                lines.append(f"Across active ARGO profiling floats, at a target depth of **{depth_val:.0f} meters**, the {summary_val}, as observed by float {platform_str}.")
         else:
             lines.append(f"Retrieved **{result.total_matched_observations}** oceanographic observation levels near **{loc_name}** from ARGO float(s) {platform_str}.")
 

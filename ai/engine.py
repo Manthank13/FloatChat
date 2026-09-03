@@ -1,4 +1,4 @@
-﻿"""
+"""
 FloatChat AI Engine - Central Orchestration Service for Oceanographic Understanding & ARGO Retrieval.
 
 Coordinates natural-language query interpretation, domain normalization,
@@ -112,6 +112,27 @@ class FloatChatAIEngine:
         synth = self.synthesizer if use_llm else self.deterministic_synthesizer
         return synth.synthesize(structured_query, retrieval_result)
 
+    def _log_pipeline_flow(self, query: str, sq: StructuredQuery, result: RetrievalResult) -> None:
+        """Structured diagnostic server-side logging without exposing keys or credentials."""
+        lat_lon = f"({sq.location.latitude}, {sq.location.longitude})" if (sq.location and sq.location.latitude is not None) else "None"
+        loc_name = sq.location.name if sq.location else "None"
+        params_str = ", ".join(p.value if hasattr(p, "value") else str(p) for p in sq.parameters) or "None"
+        depth_str = f"target={sq.depth.target_depth}m" if (sq.depth and sq.depth.target_depth is not None) else (f"{sq.depth.depth_min}-{sq.depth.depth_max}m" if sq.depth else "All")
+        date_str = sq.time_range.description if sq.time_range else "None"
+        
+        logger.info(
+            f"\n[FloatChat Pipeline Diagnostic]\n"
+            f"  RAW USER QUERY       : {query}\n"
+            f"  → PARSED INTENT      : {sq.intent.value if hasattr(sq.intent, 'value') else str(sq.intent)}\n"
+            f"  → EXTRACTED LOCATION : {loc_name}\n"
+            f"  → LAT/LON            : {lat_lon}\n"
+            f"  → PARAMETER          : {params_str}\n"
+            f"  → DEPTH              : {depth_str}\n"
+            f"  → DATE RANGE         : {date_str}\n"
+            f"  → ARGO REQUEST       : source={result.data_source}, is_empty={result.is_empty}\n"
+            f"  → ARGO RESPONSE COUNT: {result.total_matched_observations} observation levels from {len(result.matched_platforms)} float(s)"
+        )
+
     def chat(
         self,
         natural_language_query: str,
@@ -128,6 +149,7 @@ class FloatChatAIEngine:
         """
         sq = self.parse_query(natural_language_query, use_llm=use_llm, session_id=session_id)
         retrieval_result = self.retrieve_data(sq)
+        self._log_pipeline_flow(natural_language_query, sq, retrieval_result)
         response = self.synthesize_response(sq, retrieval_result, use_llm=use_llm)
 
         if session_id:
@@ -147,6 +169,7 @@ class FloatChatAIEngine:
         """
         sq = await self.parse_query_async(natural_language_query, use_llm=use_llm, session_id=session_id)
         retrieval_result = self.retrieve_data(sq)
+        self._log_pipeline_flow(natural_language_query, sq, retrieval_result)
         synth = self.synthesizer if use_llm else self.deterministic_synthesizer
         response = await synth.synthesize_async(sq, retrieval_result)
 
@@ -167,6 +190,7 @@ class FloatChatAIEngine:
         """
         sq = await self.parse_query_async(natural_language_query, use_llm=use_llm, session_id=session_id)
         retrieval_result = self.retrieve_data(sq)
+        self._log_pipeline_flow(natural_language_query, sq, retrieval_result)
         synth = self.synthesizer if use_llm else self.deterministic_synthesizer
         
         response = await synth.synthesize_async(sq, retrieval_result)

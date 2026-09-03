@@ -141,6 +141,95 @@ class ArgoDataRetriever(BaseDataRetriever):
                 message="General oceanographic and data provenance query processed.",
             )
 
+        # 1c. Handle Unmapped / Terrestrial Non-Oceanic Locations (e.g. Coorg, Denver, Delhi)
+        if sq.location and sq.location.latitude is None and sq.location.longitude is None and sq.location.bounding_box is None:
+            return RetrievalResult(
+                query_raw=sq.raw_query,
+                intent=sq.intent.value if hasattr(sq.intent, "value") else str(sq.intent),
+                parameters_requested=param_names,
+                total_matched_observations=0,
+                matched_observations=[],
+                matched_platforms=[],
+                summary=generate_data_summary([], param_names),
+                summary_statistics={},
+                spatial_info={"name": sq.location.name, "status": "unmapped_terrestrial"},
+                depth_info=depth_info,
+                time_info=time_dict or {},
+                query_metadata={"confidence": sq.confidence, "validation_errors": []},
+                warnings=[f"'{sq.location.name}' is an inland or terrestrial location without marine ARGO float coverage."],
+                errors=[],
+                data_source="NONE",
+                confidence=sq.confidence,
+                is_empty=True,
+                message=f"'{sq.location.name}' is an inland or terrestrial location. ARGO floats operate exclusively in global open ocean and deep water bodies.",
+            )
+
+        # 1d. Handle Multi-Location Comparison Queries (e.g. "Compare temperature between Chennai and Mumbai")
+        if sq.comparison and sq.comparison.comparison_type == "location" and sq.comparison.location_a and sq.comparison.location_b:
+            loc_a = sq.comparison.location_a
+            loc_b = sq.comparison.location_b
+            
+            obs_a: List[ArgoObservation] = []
+            if loc_a.latitude is not None and loc_a.longitude is not None:
+                r_a = loc_a.radius_km or 250.0
+                d_lat = r_a / 111.0
+                d_lon = r_a / (111.0 * max(0.1, math.cos(math.radians(loc_a.latitude))))
+                raw_a = self.data_source.query_observations(
+                    query=sq,
+                    min_lat=loc_a.latitude - d_lat,
+                    max_lat=loc_a.latitude + d_lat,
+                    min_lon=loc_a.longitude - d_lon,
+                    max_lon=loc_a.longitude + d_lon,
+                ) if hasattr(self.data_source, "query_observations") else self.data_source.load_observations()
+                obs_a = filter_by_spatial(filter_by_quality(raw_a), loc_a, default_radius_km=r_a)
+
+            obs_b: List[ArgoObservation] = []
+            if loc_b.latitude is not None and loc_b.longitude is not None:
+                r_b = loc_b.radius_km or 250.0
+                d_lat = r_b / 111.0
+                d_lon = r_b / (111.0 * max(0.1, math.cos(math.radians(loc_b.latitude))))
+                raw_b = self.data_source.query_observations(
+                    query=sq,
+                    min_lat=loc_b.latitude - d_lat,
+                    max_lat=loc_b.latitude + d_lat,
+                    min_lon=loc_b.longitude - d_lon,
+                    max_lon=loc_b.longitude + d_lon,
+                ) if hasattr(self.data_source, "query_observations") else self.data_source.load_observations()
+                obs_b = filter_by_spatial(filter_by_quality(raw_b), loc_b, default_radius_km=r_b)
+
+            all_obs = obs_a + obs_b
+            if sq.depth:
+                all_obs = filter_by_depth(all_obs, sq.depth)
+            if sq.time_range:
+                all_obs = filter_by_time(all_obs, sq.time_range)
+
+            matched_platforms = sorted(list({o.platform_id for o in all_obs}))
+            data_summary = generate_data_summary(all_obs, param_names)
+            stats = data_summary.parameter_summaries
+            is_empty = len(all_obs) == 0
+
+            return RetrievalResult(
+                query_raw=sq.raw_query,
+                intent="comparison_query",
+                parameters_requested=param_names,
+                total_matched_observations=len(all_obs),
+                matched_observations=all_obs,
+                matched_platforms=matched_platforms,
+                summary=data_summary,
+                summary_statistics=stats,
+                indicators={},
+                spatial_info={"target_a": loc_a.name, "target_b": loc_b.name, "count_a": len(obs_a), "count_b": len(obs_b)},
+                depth_info=depth_info,
+                time_info=time_dict or {},
+                query_metadata={"comparison": sq.comparison.model_dump() if hasattr(sq.comparison, "model_dump") else sq.comparison.dict()},
+                warnings=[],
+                errors=[],
+                data_source=all_obs[0].data_source if all_obs else "REAL_ARGO_GDAC",
+                confidence=sq.confidence,
+                is_empty=is_empty,
+                message=f"Retrieved observations for comparison between {loc_a.name} ({len(obs_a)} levels) and {loc_b.name} ({len(obs_b)} levels).",
+            )
+
         # 2. Compute coarse bounding box for push-down filtering
         min_lat, max_lat, min_lon, max_lon = None, None, None, None
         if sq.location:
@@ -179,7 +268,7 @@ class ArgoDataRetriever(BaseDataRetriever):
             observations = filter_by_platform(observations, sq.platform_id)
 
         # 6. Filter by Spatial Bounds / Geodesic Haversine Radius
-        if sq.location:
+        if sq.location and (sq.location.latitude is not None or sq.location.bounding_box is not None):
             observations = filter_by_spatial(
                 observations=observations,
                 location=sq.location,
