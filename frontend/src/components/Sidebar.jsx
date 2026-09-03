@@ -1,10 +1,6 @@
 import { useState, useEffect } from 'react';
 import { 
   Sparkles, 
-  Map, 
-  BarChart3, 
-  ShieldAlert, 
-  Bell,
   Clock, 
   MessageSquare,
   Bookmark, 
@@ -40,9 +36,9 @@ export default function Sidebar({
     });
   }, []);
 
-  const handleNavClick = (pageId) => {
+  const handleHomeClick = () => {
     if (setActivePage) {
-      setActivePage(pageId);
+      setActivePage('chat');
     }
   };
 
@@ -52,28 +48,20 @@ export default function Sidebar({
     }
   };
 
-  const handleAlertsClick = () => {
-    if (onOpenAlertSettings) {
-      onOpenAlertSettings();
-    } else if (setActivePage) {
-      setActivePage('about');
-    }
-  };
-
   return (
     <aside 
-      className={`sidebar-observatory-container ${isOpen ? 'expanded' : 'collapsed'}`}
+      className={`sidebar-utility-container ${isOpen ? 'expanded' : 'collapsed'}`}
       role="navigation"
-      aria-label="Observatory Navigation Rail"
+      aria-label="Secondary Utility Rail"
       aria-expanded={isOpen}
     >
       <div className="sidebar-inner-content">
         {/* Top Header & Expand / Collapse Button */}
         <div className="sidebar-top-bar">
           {isOpen ? (
-            <div className="sidebar-brand-badge font-mono">
+            <div className="sidebar-section-badge font-mono">
               <span className="brand-dot animate-pulse"></span>
-              <span>OBSERVATORY</span>
+              <span>WORKSPACE</span>
             </div>
           ) : (
             <div className="collapsed-indicator" />
@@ -94,182 +82,103 @@ export default function Sidebar({
           </button>
         </div>
 
-        {/* Primary Navigation Rail (Simple, Universal, Obvious Icons) */}
-        <nav className="sidebar-primary-nav" aria-label="Main Navigation">
-          {/* 1. ✨ Climate Intelligence */}
+        {/* Utility & Workspace Navigation Items */}
+        <nav className="sidebar-nav-group" aria-label="Utility Navigation">
+          {/* OBSERVATORY: Home / Intelligence */}
           <button
             type="button"
             className={`sidebar-nav-btn ${activePage === 'chat' ? 'active' : ''}`}
-            onClick={() => handleNavClick('chat')}
-            title="Climate Intelligence"
-            aria-label="Climate Intelligence"
+            onClick={handleHomeClick}
+            title="Climate Intelligence Home"
+            aria-label="Climate Intelligence Home"
             aria-current={activePage === 'chat' ? 'page' : undefined}
           >
             <div className="nav-btn-icon-wrap">
               <Sparkles size={17} className={activePage === 'chat' ? 'text-cyan' : ''} />
             </div>
-            {isOpen && <span className="nav-btn-label">Climate Intelligence</span>}
+            {isOpen && <span className="nav-btn-label">Home / Intelligence</span>}
             {!isOpen && (
               <span className="sidebar-hover-tooltip font-mono">
-                Climate Intelligence
+                Home / Intelligence
               </span>
             )}
           </button>
 
-          {/* 2. 🗺 Risk & Sensor Map */}
-          <button
-            type="button"
-            className={`sidebar-nav-btn ${activePage === 'explore' ? 'active' : ''}`}
-            onClick={() => handleNavClick('explore')}
-            title="Risk & Sensor Map"
-            aria-label="Risk & Sensor Map"
-            aria-current={activePage === 'explore' ? 'page' : undefined}
-          >
-            <div className="nav-btn-icon-wrap">
-              <Map size={17} className={activePage === 'explore' ? 'text-cyan' : ''} />
-            </div>
-            {isOpen && <span className="nav-btn-label">Risk & Sensor Map</span>}
-            {!isOpen && (
-              <span className="sidebar-hover-tooltip font-mono">
-                Risk & Sensor Map
-              </span>
-            )}
-          </button>
-
-          {/* 3. 📊 Environmental Signals */}
-          <button
-            type="button"
-            className={`sidebar-nav-btn ${activePage === 'data' || activePage === 'inspect' ? 'active' : ''}`}
-            onClick={() => handleNavClick('data')}
-            title="Environmental Signals"
-            aria-label="Environmental Signals"
-            aria-current={activePage === 'data' || activePage === 'inspect' ? 'page' : undefined}
-          >
-            <div className="nav-btn-icon-wrap">
-              <BarChart3 size={17} className={activePage === 'data' || activePage === 'inspect' ? 'text-cyan' : ''} />
-            </div>
-            {isOpen && <span className="nav-btn-label">Environmental Signals</span>}
-            {!isOpen && (
-              <span className="sidebar-hover-tooltip font-mono">
-                Environmental Signals
-              </span>
-            )}
-          </button>
-
-          {/* 4. 🛡 Disaster Resilience */}
-          <button
-            type="button"
-            className={`sidebar-nav-btn ${activePage === 'about' ? 'active' : ''}`}
-            onClick={() => handleNavClick('about')}
-            title="Disaster Resilience"
-            aria-label="Disaster Resilience"
-            aria-current={activePage === 'about' ? 'page' : undefined}
-          >
-            <div className="nav-btn-icon-wrap">
-              <ShieldAlert size={17} className={activePage === 'about' ? 'text-cyan' : ''} />
-            </div>
-            {isOpen && <span className="nav-btn-label">Disaster Resilience</span>}
-            {!isOpen && (
-              <span className="sidebar-hover-tooltip font-mono">
-                Disaster Resilience
-              </span>
-            )}
-          </button>
-
-          {/* 5. 🔔 Alerts */}
-          <button
-            type="button"
-            className="sidebar-nav-btn"
-            onClick={handleAlertsClick}
-            title="Alerts"
-            aria-label="Alerts"
-          >
-            <div className="nav-btn-icon-wrap">
-              <Bell size={17} />
-            </div>
-            {isOpen && <span className="nav-btn-label">Alerts</span>}
-            {!isOpen && (
-              <span className="sidebar-hover-tooltip font-mono">
-                Alerts
-              </span>
-            )}
-          </button>
-
-          {/* 6. 🕘 History */}
-          <button
-            type="button"
-            className="sidebar-nav-btn"
-            onClick={handleHistoryClick}
-            title="History"
-            aria-label="History"
-          >
-            <div className="nav-btn-icon-wrap">
-              <Clock size={17} />
-            </div>
-            {isOpen && <span className="nav-btn-label">History</span>}
-            {!isOpen && (
-              <span className="sidebar-hover-tooltip font-mono">
-                History
-              </span>
-            )}
-          </button>
-
-          {/* 7. 💬 Messages */}
+          {/* WORKSPACE: Messages / New Inquiry */}
           <button
             type="button"
             className="sidebar-nav-btn"
             onClick={onNewChat}
-            title="Messages"
-            aria-label="Messages"
+            title="New Climate Inquiry"
+            aria-label="New Climate Inquiry"
           >
             <div className="nav-btn-icon-wrap">
               <MessageSquare size={17} />
             </div>
-            {isOpen && <span className="nav-btn-label">Messages</span>}
+            {isOpen && <span className="nav-btn-label">New Inquiry</span>}
             {!isOpen && (
               <span className="sidebar-hover-tooltip font-mono">
-                Messages
+                New Inquiry
               </span>
             )}
           </button>
 
-          {/* 8. 🔖 Bookmarks */}
+          {/* WORKSPACE: History */}
+          <button
+            type="button"
+            className="sidebar-nav-btn"
+            onClick={handleHistoryClick}
+            title="Mission History"
+            aria-label="Mission History"
+          >
+            <div className="nav-btn-icon-wrap">
+              <Clock size={17} />
+            </div>
+            {isOpen && <span className="nav-btn-label">Mission History</span>}
+            {!isOpen && (
+              <span className="sidebar-hover-tooltip font-mono">
+                Mission History
+              </span>
+            )}
+          </button>
+
+          {/* WORKSPACE: Bookmarks / Watchlist */}
           {onOpenWatchlist && (
             <button
               type="button"
               className="sidebar-nav-btn"
               onClick={onOpenWatchlist}
-              title="Bookmarks"
-              aria-label="Bookmarks"
+              title="Climate Watchlist"
+              aria-label="Climate Watchlist"
             >
               <div className="nav-btn-icon-wrap">
                 <Bookmark size={17} />
               </div>
-              {isOpen && <span className="nav-btn-label">Bookmarks</span>}
+              {isOpen && <span className="nav-btn-label">Climate Watchlist</span>}
               {!isOpen && (
                 <span className="sidebar-hover-tooltip font-mono">
-                  Bookmarks
+                  Climate Watchlist
                 </span>
               )}
             </button>
           )}
 
-          {/* 9. ⚙ Settings */}
+          {/* SYSTEM: Alert & Location Settings */}
           {onOpenAlertSettings && (
             <button
               type="button"
               className="sidebar-nav-btn"
               onClick={onOpenAlertSettings}
-              title="Settings"
-              aria-label="Settings"
+              title="Alert & Location Settings"
+              aria-label="Alert & Location Settings"
             >
               <div className="nav-btn-icon-wrap">
                 <Settings size={17} />
               </div>
-              {isOpen && <span className="nav-btn-label">Settings</span>}
+              {isOpen && <span className="nav-btn-label">Alert Settings</span>}
               {!isOpen && (
                 <span className="sidebar-hover-tooltip font-mono">
-                  Settings
+                  Alert & Location Settings
                 </span>
               )}
             </button>
@@ -278,7 +187,7 @@ export default function Sidebar({
 
         <div className="sidebar-divider" />
 
-        {/* Mission History / Recent Inquiries List (Visible in Expanded Mode) */}
+        {/* Mission History List (Visible in Expanded Mode) */}
         {isOpen && (
           <div className="sidebar-conversations-section">
             <div className="section-label-row">
@@ -357,16 +266,16 @@ export default function Sidebar({
           <div className="sidebar-bottom-telemetry">
             <div className="telemetry-box-header">
               <Radio size={12} className="text-cyan" />
-              <span className="telemetry-box-title font-mono">CLIMATE SENSING ARRAY</span>
+              <span className="telemetry-box-title font-mono">IN-SITU OBSERVING ARRAY</span>
             </div>
             <div className="telemetry-data-row font-mono">
               <div className="tele-item">
-                <span className="tele-k">Active</span>
-                <strong className="tele-v text-emerald">{fleetStats.regionalIndianOceanCount || 6} Sensors</strong>
+                <span className="tele-k">Regional</span>
+                <strong className="tele-v text-emerald">{fleetStats.regionalIndianOceanCount || 6} Floats</strong>
               </div>
               <div className="tele-item">
                 <span className="tele-k">Cadence</span>
-                <strong className="tele-v">{fleetStats.nominalCadenceDays || 10} Days</strong>
+                <strong className="tele-v">{fleetStats.nominalCadenceDays || 10}d</strong>
               </div>
               <div className="tele-item">
                 <span className="tele-k">Quality</span>
@@ -378,7 +287,7 @@ export default function Sidebar({
       </div>
 
       <style>{`
-        .sidebar-observatory-container {
+        .sidebar-utility-container {
           background: var(--glass-panel-elevated);
           backdrop-filter: blur(20px);
           -webkit-backdrop-filter: blur(20px);
@@ -393,19 +302,19 @@ export default function Sidebar({
           overflow: visible;
         }
 
-        .sidebar-observatory-container.expanded {
-          width: 240px;
+        .sidebar-utility-container.expanded {
+          width: 220px;
         }
 
-        .sidebar-observatory-container.collapsed {
-          width: 58px;
+        .sidebar-utility-container.collapsed {
+          width: 56px;
         }
 
         .sidebar-inner-content {
           display: flex;
           flex-direction: column;
           height: 100%;
-          padding: 10px 7px;
+          padding: 10px 6px;
           gap: 6px;
         }
 
@@ -418,11 +327,11 @@ export default function Sidebar({
           position: relative;
         }
 
-        .sidebar-brand-badge {
+        .sidebar-section-badge {
           display: flex;
           align-items: center;
           gap: 6px;
-          font-size: 9px;
+          font-size: 8.5px;
           color: var(--cyan-primary);
           font-weight: 800;
           letter-spacing: 0.08em;
@@ -465,8 +374,8 @@ export default function Sidebar({
           border-color: var(--border-light);
         }
 
-        /* Primary Navigation Items */
-        .sidebar-primary-nav {
+        /* Navigation Items */
+        .sidebar-nav-group {
           display: flex;
           flex-direction: column;
           gap: 4px;
@@ -475,8 +384,8 @@ export default function Sidebar({
         .sidebar-nav-btn {
           display: flex;
           align-items: center;
-          gap: 12px;
-          padding: 8px;
+          gap: 10px;
+          padding: 8px 10px;
           border-radius: var(--radius-md);
           background: transparent;
           border: 1px solid transparent;
@@ -489,7 +398,7 @@ export default function Sidebar({
           font-family: inherit;
         }
 
-        .sidebar-observatory-container.collapsed .sidebar-nav-btn {
+        .sidebar-utility-container.collapsed .sidebar-nav-btn {
           justify-content: center;
           padding: 8px 0;
         }
@@ -511,8 +420,8 @@ export default function Sidebar({
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 24px;
-          height: 24px;
+          width: 22px;
+          height: 22px;
           flex-shrink: 0;
         }
 
@@ -521,7 +430,7 @@ export default function Sidebar({
         }
 
         .nav-btn-label {
-          font-size: 12px;
+          font-size: 11.5px;
           font-weight: 600;
           white-space: nowrap;
           overflow: hidden;
@@ -561,8 +470,8 @@ export default function Sidebar({
           border-color: transparent var(--border-light) transparent transparent;
         }
 
-        .sidebar-observatory-container.collapsed .sidebar-nav-btn:hover .sidebar-hover-tooltip,
-        .sidebar-observatory-container.collapsed .sidebar-toggle-btn:hover .sidebar-hover-tooltip {
+        .sidebar-utility-container.collapsed .sidebar-nav-btn:hover .sidebar-hover-tooltip,
+        .sidebar-utility-container.collapsed .sidebar-toggle-btn:hover .sidebar-hover-tooltip {
           opacity: 1;
           visibility: visible;
         }
@@ -597,7 +506,7 @@ export default function Sidebar({
         }
 
         .section-label {
-          font-size: 9px;
+          font-size: 8.5px;
           color: var(--text-muted);
           letter-spacing: 0.08em;
           font-weight: 700;
@@ -630,7 +539,7 @@ export default function Sidebar({
         .empty-logs-hint {
           padding: 16px 8px;
           text-align: center;
-          font-size: 10.5px;
+          font-size: 10px;
           color: var(--text-muted);
         }
 
@@ -681,7 +590,7 @@ export default function Sidebar({
         }
 
         .conv-title {
-          font-size: 11px;
+          font-size: 10.5px;
           font-weight: 600;
           white-space: nowrap;
           overflow: hidden;
@@ -692,7 +601,7 @@ export default function Sidebar({
           display: flex;
           align-items: center;
           gap: 4px;
-          font-size: 8.5px;
+          font-size: 8px;
           color: var(--text-muted);
         }
 
@@ -725,10 +634,10 @@ export default function Sidebar({
           background: var(--data-surface);
           border: 1px solid var(--border-light);
           border-radius: var(--radius-md);
-          padding: 7px 9px;
+          padding: 7px 8px;
           display: flex;
           flex-direction: column;
-          gap: 5px;
+          gap: 4px;
           box-shadow: var(--shadow-subtle);
         }
 
@@ -739,7 +648,7 @@ export default function Sidebar({
         }
 
         .telemetry-box-title {
-          font-size: 8px;
+          font-size: 7.5px;
           font-weight: 800;
           color: var(--cyan-primary);
           letter-spacing: 0.06em;
@@ -748,7 +657,7 @@ export default function Sidebar({
         .telemetry-data-row {
           display: flex;
           justify-content: space-between;
-          font-size: 9px;
+          font-size: 8.5px;
         }
 
         .tele-item {
@@ -759,18 +668,18 @@ export default function Sidebar({
 
         .tele-k {
           color: var(--text-muted);
-          font-size: 7.5px;
+          font-size: 7px;
         }
 
         .tele-v {
-          font-size: 9.5px;
+          font-size: 9px;
         }
 
         .text-emerald { color: var(--emerald-nominal); }
         .text-cyan { color: var(--cyan-primary); }
 
         @media (max-width: 768px) {
-          .sidebar-observatory-container {
+          .sidebar-utility-container {
             display: none;
           }
         }
